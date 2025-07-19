@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # ACP Hello World Agent
+  acp-hello-world:
+    build:
+      context: ./agents/acp-hello-world
+      dockerfile: Dockerfile
+    image: acp-hello-world-agent:latest
+    container_name: acp-hello-world-agent
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - PYTHONPATH=/app/src
+      - AGENT_TYPE=acp
+      - AGENT_NAME=hello-world
+    volumes:
+      # Mount configuration files for development
+      - ./agents/acp-hello-world/agent-manifest.yaml:/app/agent-manifest.yaml:ro
+      - ./agents/acp-hello-world/acp-descriptor.json:/app/acp-descriptor.json:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - agent-network
+    labels:
+      - "agent.protocol=acp"
+      - "agent.type=hello-world"
+      - "agent.version=0.1.0"
+
+  # Agent Directory Service (Mock)
+  agent-directory:
+    image: nginx:alpine
+    container_name: agent-directory
+    ports:
+      - "8080:80"
+    volumes:
+      - ./scripts/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./scripts/agent-directory.html:/usr/share/nginx/html/index.html:ro
+    depends_on:
+      - acp-hello-world
+    networks:
+      - agent-network
+    labels:
+      - "service.type=directory"
+      - "service.description=Mock agent directory for development"
+
+  # Future agents will be added here...
+  # Example structure for other protocols:
+  # 
+  # mcp-example-agent:
+  #   build:
+  #     context: ./agents/mcp-example
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8001:8000"
+  #   networks:
+  #     - agent-network
+  #   labels:
+  #     - "agent.protocol=mcp"
+  #
+  # a2a-example-agent:
+  #   build:
+  #     context: ./agents/a2a-example
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8002:8000"
+  #   networks:
+  #     - agent-network
+  #   labels:
+  #     - "agent.protocol=a2a"
+
+networks:
+  agent-network:
+    driver: bridge
+    name: agent-network
+
+volumes:
+  agent-data:
+    driver: local

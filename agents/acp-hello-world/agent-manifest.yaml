@@ -1,0 +1,133 @@
+apiVersion: agntcy.org/v1
+kind: AgentManifest
+metadata:
+  name: hello-world-agent
+  version: "0.1.0"
+  description: "A simple hello world agent demonstrating AGNTCY Internet of Agents protocol"
+  author: "AGNTCY Community"
+  license: "Apache-2.0"
+  tags:
+    - hello-world
+    - demo
+    - agntcy
+    - acp
+  
+spec:
+  agent:
+    id: hello-world-agent
+    name: "Hello World Agent"
+    description: "A simple agent that generates greetings in multiple languages"
+    version: "0.1.0"
+    
+  capabilities:
+    - name: generate_greeting
+      description: "Generate a personalized greeting message"
+      inputSchema:
+        type: object
+        properties:
+          name:
+            type: string
+            description: "Name to greet"
+            default: "World"
+          message:
+            type: string
+            description: "Custom greeting message"
+          language:
+            type: string
+            description: "Language for greeting"
+            default: "en"
+            enum: ["en", "es", "fr", "de", "it"]
+      outputSchema:
+        type: object
+        properties:
+          greeting:
+            type: string
+            description: "The generated greeting"
+          timestamp:
+            type: string
+            format: date-time
+            description: "When the greeting was generated"
+          agent_id:
+            type: string
+            description: "ID of the agent that generated the greeting"
+        required:
+          - greeting
+          - timestamp
+          - agent_id
+
+  configuration:
+    schema:
+      type: object
+      properties:
+        agent_name:
+          type: string
+          description: "Name of the agent"
+          default: "Hello World Agent"
+        default_language:
+          type: string
+          description: "Default language for greetings"
+          default: "en"
+        custom_greetings:
+          type: object
+          description: "Custom greeting messages by language"
+          properties:
+            en:
+              type: string
+              default: "Hello"
+            es:
+              type: string
+              default: "Hola"
+            fr:
+              type: string
+              default: "Bonjour"
+            de:
+              type: string
+              default: "Hallo"
+            it:
+              type: string
+              default: "Ciao"
+
+  deployment:
+    type: docker
+    image: hello-world-agent:latest
+    ports:
+      - containerPort: 8000
+        protocol: TCP
+        name: http
+    env:
+      - name: PORT
+        value: "8000"
+      - name: HOST
+        value: "0.0.0.0"
+    
+  endpoints:
+    base_url: "http://localhost:8000"
+    protocol: acp
+    version: v0
+    paths:
+      auth: "/auth"
+      schema: "/schema"
+      config: "/config"
+      invoke: "/invoke"
+      capabilities: "/capabilities"
+
+  dependencies: []
+  
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+  discovery:
+    enabled: true
+    keywords:
+      - greeting
+      - hello
+      - multilingual
+      - demo
+    categories:
+      - communication
+      - demo

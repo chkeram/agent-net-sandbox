@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Protocol Agent Sandbox Directory</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f5f5f5; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #333; border-bottom: 2px solid #007acc; padding-bottom: 10px; }
+        h2 { color: #555; margin-top: 30px; }
+        .protocol-section { border: 1px solid #ddd; border-radius: 6px; padding: 20px; margin: 20px 0; background: #fafafa; }
+        .agent-card { border: 1px solid #ddd; border-radius: 6px; padding: 15px; margin: 15px 0; background: white; }
+        .agent-name { font-size: 18px; font-weight: bold; color: #007acc; }
+        .agent-description { margin: 10px 0; color: #666; }
+        .agent-capabilities { margin: 10px 0; }
+        .capability { background: #e7f3ff; padding: 4px 8px; border-radius: 4px; margin: 2px; display: inline-block; font-size: 12px; }
+        .protocol-badge { background: #007acc; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .endpoints { margin: 10px 0; }
+        .endpoint { font-family: monospace; background: #f0f0f0; padding: 2px 6px; border-radius: 3px; margin: 2px; display: inline-block; }
+        .coming-soon { opacity: 0.6; border: 2px dashed #ccc; }
+        a { color: #007acc; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .nav { margin-bottom: 20px; }
+        .nav a { margin-right: 20px; padding: 10px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; }
+        .nav a:hover { background: #005a9a; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Multi-Protocol Agent Sandbox</h1>
+        <p>Development environment supporting multiple agent communication protocols.</p>
+        
+        <div class="nav">
+            <a href="#acp">ACP Agents</a>
+            <a href="#mcp">MCP Agents</a>
+            <a href="#a2a">A2A Agents</a>
+            <a href="#custom">Custom Protocols</a>
+        </div>
+
+        <h2 id="acp">🔗 Agent Connect Protocol (ACP) Agents</h2>
+        <div class="protocol-section">
+            <p><strong>Protocol:</strong> <span class="protocol-badge">ACP</span> - AGNTCY Internet of Agents standard</p>
+            
+            <div class="agent-card">
+                <div class="agent-name">Hello World Agent <span class="protocol-badge">ACP</span></div>
+                <div class="agent-description">A simple agent that generates greetings in multiple languages</div>
+                
+                <div class="agent-capabilities">
+                    <strong>Capabilities:</strong>
+                    <span class="capability">generate_greeting</span>
+                    <span class="capability">multilingual</span>
+                    <span class="capability">streaming</span>
+                    <span class="capability">configuration</span>
+                </div>
+                
+                <div class="endpoints">
+                    <strong>ACP Endpoints:</strong><br>
+                    <span class="endpoint">GET <a href="http://localhost:8000/auth">/auth</a></span>
+                    <span class="endpoint">GET <a href="http://localhost:8000/schema">/schema</a></span>
+                    <span class="endpoint">POST <a href="http://localhost:8000/config">/config</a></span>
+                    <span class="endpoint">POST <a href="http://localhost:8000/invoke">/invoke</a></span>
+                    <span class="endpoint">GET <a href="http://localhost:8000/capabilities">/capabilities</a></span>
+                </div>
+                
+                <p><strong>Base URL:</strong> <a href="http://localhost:8000">http://localhost:8000</a></p>
+                <p><strong>Documentation:</strong> <a href="http://localhost:8000/docs">OpenAPI Docs</a></p>
+                <p><strong>Health Check:</strong> <a href="http://localhost:8000/health">Health Status</a></p>
+            </div>
+        </div>
+
+        <h2 id="mcp">🔌 Model Context Protocol (MCP) Agents</h2>
+        <div class="protocol-section coming-soon">
+            <p><strong>Protocol:</strong> <span class="protocol-badge">MCP</span> - Anthropic's Model Context Protocol</p>
+            <p><em>Coming soon... Add your MCP agents here!</em></p>
+            
+            <div class="agent-card coming-soon">
+                <div class="agent-name">Example MCP Agent <span class="protocol-badge">MCP</span></div>
+                <div class="agent-description">Placeholder for future MCP agent implementation</div>
+                <p><strong>Expected Port:</strong> 8001</p>
+                <p><strong>Expected Path:</strong> /agents/mcp-example/</p>
+            </div>
+        </div>
+
+        <h2 id="a2a">🤝 Agent-to-Agent (A2A) Protocol Agents</h2>
+        <div class="protocol-section coming-soon">
+            <p><strong>Protocol:</strong> <span class="protocol-badge">A2A</span> - Agent-to-Agent Communication Protocol</p>
+            <p><em>Coming soon... Add your A2A agents here!</em></p>
+            
+            <div class="agent-card coming-soon">
+                <div class="agent-name">Example A2A Agent <span class="protocol-badge">A2A</span></div>
+                <div class="agent-description">Placeholder for future A2A agent implementation</div>
+                <p><strong>Expected Port:</strong> 8002</p>
+                <p><strong>Expected Path:</strong> /agents/a2a-example/</p>
+            </div>
+        </div>
+
+        <h2 id="custom">⚡ Custom Protocol Agents</h2>
+        <div class="protocol-section coming-soon">
+            <p><strong>Protocol:</strong> <span class="protocol-badge">CUSTOM</span> - Your own protocol implementations</p>
+            <p><em>Coming soon... Add your custom protocol agents here!</em></p>
+            
+            <div class="agent-card coming-soon">
+                <div class="agent-name">Custom Protocol Agent <span class="protocol-badge">CUSTOM</span></div>
+                <div class="agent-description">Placeholder for custom protocol implementations</div>
+                <p><strong>Expected Port:</strong> 8003+</p>
+            </div>
+        </div>
+        
+        <h2>🧪 Testing Multiple Agents</h2>
+        <div class="protocol-section">
+            <h3>Quick Tests for ACP Agent</h3>
+            <pre>curl -X POST "http://localhost:8000/hello" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Multi-Agent", "language": "en"}'</pre>
+            
+            <pre>curl -X POST "http://localhost:8000/invoke" \
+  -H "Content-Type: application/json" \
+  -d '{"input": {"name": "Sandbox", "language": "fr"}}'</pre>
+            
+            <h3>Test All Agents (when available)</h3>
+            <pre># Test ACP agent
+./scripts/agents/test_acp.sh
+
+# Test MCP agent (future)
+./scripts/agents/test_mcp.sh
+
+# Test A2A agent (future)
+./scripts/agents/test_a2a.sh
+
+# Test all agents
+./scripts/test_all_agents.sh</pre>
+        </div>
+
+        <h2>🛠️ Adding New Agents</h2>
+        <div class="protocol-section">
+            <ol>
+                <li>Create a new folder: <code>agents/{protocol}-{name}/</code></li>
+                <li>Add your agent implementation</li>
+                <li>Create a Dockerfile for containerization</li>
+                <li>Update <code>docker-compose.yml</code> with your service</li>
+                <li>Add proxy configuration to nginx.conf</li>
+                <li>Update this directory page</li>
+            </ol>
+            
+            <p><strong>Example structure:</strong></p>
+            <pre>agents/
+├── acp-hello-world/          # ACP Hello World (implemented)
+├── mcp-example/              # Your MCP agent
+├── a2a-example/              # Your A2A agent
+└── custom-protocol/          # Your custom protocol</pre>
+        </div>
+    </div>
+</body>
+</html>

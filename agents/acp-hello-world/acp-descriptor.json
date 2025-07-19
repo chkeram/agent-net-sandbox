@@ -1,0 +1,151 @@
+{
+  "agent_id": "hello-world-agent",
+  "agent_name": "Hello World Agent",
+  "version": "0.1.0",
+  "description": "A simple agent that generates greetings in multiple languages",
+  "protocol_version": "acp/v0",
+  "base_url": "http://localhost:8000",
+  
+  "metadata": {
+    "author": "AGNTCY Community",
+    "license": "Apache-2.0",
+    "tags": ["hello-world", "demo", "agntcy", "acp"],
+    "categories": ["communication", "demo"],
+    "keywords": ["greeting", "hello", "multilingual", "demo"]
+  },
+
+  "authentication": {
+    "type": "none",
+    "description": "No authentication required"
+  },
+
+  "endpoints": {
+    "auth": {
+      "path": "/auth",
+      "method": "GET",
+      "description": "Get authentication information"
+    },
+    "schema": {
+      "path": "/schema", 
+      "method": "GET",
+      "description": "Get JSON schemas for input, output, and configuration"
+    },
+    "config": {
+      "path": "/config",
+      "method": "POST", 
+      "description": "Create and store agent configuration"
+    },
+    "invoke": {
+      "path": "/invoke",
+      "method": "POST",
+      "description": "Invoke the agent with input data",
+      "supports_streaming": true
+    },
+    "capabilities": {
+      "path": "/capabilities",
+      "method": "GET",
+      "description": "Get agent capabilities and supported operations"
+    }
+  },
+
+  "capabilities": [
+    {
+      "name": "generate_greeting",
+      "description": "Generate a personalized greeting message",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name to greet",
+            "default": "World"
+          },
+          "message": {
+            "type": "string", 
+            "description": "Custom greeting message"
+          },
+          "language": {
+            "type": "string",
+            "description": "Language for greeting",
+            "default": "en",
+            "enum": ["en", "es", "fr", "de", "it"]
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "greeting": {
+            "type": "string",
+            "description": "The generated greeting"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the greeting was generated"
+          },
+          "agent_id": {
+            "type": "string",
+            "description": "ID of the agent that generated the greeting"
+          }
+        },
+        "required": ["greeting", "timestamp", "agent_id"]
+      }
+    }
+  ],
+
+  "configuration_schema": {
+    "type": "object",
+    "properties": {
+      "agent_name": {
+        "type": "string",
+        "description": "Name of the agent",
+        "default": "Hello World Agent"
+      },
+      "default_language": {
+        "type": "string", 
+        "description": "Default language for greetings",
+        "default": "en"
+      },
+      "custom_greetings": {
+        "type": "object",
+        "description": "Custom greeting messages by language",
+        "properties": {
+          "en": {"type": "string", "default": "Hello"},
+          "es": {"type": "string", "default": "Hola"},
+          "fr": {"type": "string", "default": "Bonjour"},
+          "de": {"type": "string", "default": "Hallo"},
+          "it": {"type": "string", "default": "Ciao"}
+        }
+      }
+    }
+  },
+
+  "supported_features": {
+    "streaming": true,
+    "configuration": true,
+    "discovery": true,
+    "health_check": true
+  },
+
+  "health_check": {
+    "endpoint": "/health",
+    "method": "GET"
+  },
+
+  "discovery": {
+    "enabled": true,
+    "keywords": ["greeting", "hello", "multilingual", "demo"],
+    "categories": ["communication", "demo"]
+  },
+
+  "deployment": {
+    "type": "docker",
+    "image": "hello-world-agent:latest",
+    "port": 8000,
+    "environment": {
+      "PORT": "8000",
+      "HOST": "0.0.0.0"
+    }
+  }
+}
