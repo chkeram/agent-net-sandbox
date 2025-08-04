@@ -1,6 +1,43 @@
-# Multi-Protocol Agent Sandbox
+# 🤖 Agent Network Sandbox
 
-A comprehensive development environment for building and testing agents across multiple communication protocols. This sandbox supports various agent frameworks and protocols, making it easy to compare implementations and develop multi-protocol agent systems.
+*A production-ready Multi-Protocol Agent Orchestrator and development environment for building and testing agents across multiple communication protocols.*
+
+**Get started in under 5 minutes** → [Quick Start Guide](QUICK_START.md)
+
+The Agent Network Sandbox is a comprehensive platform that enables developers to experiment with different agent frameworks and protocols seamlessly. At its core is an AI-powered Multi-Protocol Agent Orchestrator that intelligently routes requests to the most appropriate agents across heterogeneous ecosystems.
+
+## ✨ What Makes This Special
+
+🧠 **AI-Powered Orchestration** - Intelligent routing using Pydantic AI with GPT-4o or Claude-3.5-Sonnet  
+🔌 **Multi-Protocol Support** - ACP, MCP, A2A, and custom protocols in a unified platform  
+🚀 **Production Ready** - Docker-based deployment with comprehensive testing and monitoring  
+📚 **Developer Friendly** - Extensive documentation, examples, and contribution guidelines  
+🔧 **Highly Extensible** - Add new protocols and agents with minimal effort  
+
+---
+
+## 🚀 Quick Start
+
+**New here?** Get everything running in under 5 minutes:
+
+```bash
+# 1. Clone and start
+git clone https://github.com/your-org/agent-net-sandbox.git
+cd agent-net-sandbox
+docker-compose up -d
+
+# 2. Verify it works
+./scripts/test_all_agents.sh
+
+# 3. Try the orchestrator
+curl -X POST "http://localhost:8004/process" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Hello there!"}'
+```
+
+**Need more details?** → [Manual Setup Guide](MANUAL_SETUP.md)
+
+---
 
 ## 🎯 Supported Protocols
 
@@ -552,6 +589,38 @@ python -m pytest tests/
 - **Security**: Follow container security best practices
 - **Monitoring**: Structured logging and metrics
 
+## 🗺️ Roadmap
+
+### 🎉 Current Release (v1.0)
+- ✅ **Multi-Protocol Agent Orchestrator** - AI-powered intelligent routing
+- ✅ **ACP Protocol Support** - Full AGNTCY Agent Connect Protocol implementation
+- ✅ **Real-time Discovery** - Automatic agent discovery and health monitoring
+- ✅ **Production Documentation** - Comprehensive setup and contribution guides
+- ✅ **Docker Deployment** - Container-based architecture with Docker Compose
+
+### 🚧 Next Release (v1.1) - Q2 2025
+- 🔄 **MCP Protocol Support** - Anthropic's Model Context Protocol integration
+- 🔄 **A2A Protocol Support** - Agent-to-Agent Communication Protocol
+- 🔄 **Enhanced Web UI** - Interactive agent directory with testing capabilities
+- 🔄 **Metrics Dashboard** - Real-time monitoring and performance analytics
+- 🔄 **Load Balancing** - Intelligent request distribution across agent instances
+
+### 🔮 Future Releases
+- **Advanced Routing** - Multi-agent workflows and request orchestration
+- **Security Layer** - Authentication, authorization, and encrypted communications
+- **Protocol Extensions** - Support for additional protocols and custom implementations
+- **Scaling Features** - Kubernetes deployment and horizontal scaling
+- **Developer Tools** - Protocol SDK, testing frameworks, and code generators
+
+### 🤝 Community Contributions Welcome
+We're looking for contributors to help with:
+- **Protocol Implementations** - Add support for new agent protocols
+- **Agent Examples** - Reference implementations and use cases
+- **Documentation** - Tutorials, guides, and protocol specifications
+- **Testing** - Integration tests and performance benchmarks
+
+---
+
 ## 📚 Protocol Documentation
 
 ### ACP (Agent Connect Protocol)
@@ -574,6 +643,10 @@ python -m pytest tests/
 
 ## 🤝 Contributing
 
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for detailed information.
+
+**Quick contribution workflow:**
+
 1. **Fork the repository**
 2. **Create agent in appropriate directory**
 3. **Follow project conventions**
@@ -590,25 +663,62 @@ python -m pytest tests/
 - Add appropriate labels and metadata
 - Test thoroughly across protocols
 
+**Need help?** Check our [Contributing Guide](CONTRIBUTING.md) and [Security Policy](SECURITY.md)
+
+---
+
+## 🎫 Future Work & Community Tasks
+
+The following features are planned for future development and community contributions:
+
+### 📋 GitHub Issue & PR Templates
+- **Issue Templates** (`.github/ISSUE_TEMPLATE/`) - Standardized templates for bug reports, feature requests, and protocol support requests
+- **PR Template** (`.github/pull_request_template.md`) - Consistent pull request format with checklists and requirements
+
+These templates will help maintain consistent quality and provide clear guidance for contributors. Community members are welcome to contribute these templates following GitHub's best practices.
+
+### 🔧 Additional Planned Enhancements
+- **CI/CD Workflows** - Automated testing, security scanning, and deployment pipelines
+- **Protocol Testing Framework** - Automated compliance testing for new protocol implementations
+- **Performance Benchmarking** - Automated performance testing and regression detection
+- **Documentation Automation** - Auto-generated API docs and protocol specifications
+
+---
+
+## 📖 Documentation & Resources
+
+### 📚 Setup & Usage
+- **[Quick Start Guide](QUICK_START.md)** - Get running in 5 minutes
+- **[Manual Setup Guide](MANUAL_SETUP.md)** - Detailed installation and development setup
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute agents and protocols  
+- **[Security Policy](SECURITY.md)** - Security guidelines and vulnerability reporting
+
+### 🔗 External Resources
+- [AGNTCY Internet of Agents](https://agntcy.org) - ACP Protocol Ecosystem
+- [Model Context Protocol](https://modelcontextprotocol.io/) - Anthropic's MCP Specification
+- [Agent-to-Agent Protocol](https://a2aprotocol.ai/) - A2A Protocol Documentation
+- [Docker Documentation](https://docs.docker.com/) - Container Platform Documentation
+- [Pydantic AI](https://ai.pydantic.dev/) - Modern AI Agent Framework
+
+---
+
+## 🎉 Ready to Start?
+
+**Choose your path:**
+
+🚀 **Quick Start**: `git clone && docker-compose up -d` → [Quick Start Guide](QUICK_START.md)  
+🛠️ **Development**: Local setup with hot reload → [Manual Setup Guide](MANUAL_SETUP.md)  
+🤝 **Contributing**: Add protocols and agents → [Contributing Guide](CONTRIBUTING.md)  
+🔍 **Deep Dive**: Explore the orchestrator → [Orchestrator Documentation](agents/orchestrator/README.md)  
+
+---
+
 ## 📝 License
 
-This project is licensed under the Apache 2.0 License - see the LICENSE file for details.
+This project is licensed under the **Apache 2.0 License** - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 Links
+---
 
-- [AGNTCY Internet of Agents](https://agntcy.org)
-- [Model Context Protocol](https://modelcontextprotocol.io/)
-- [Agent-to-Agent Protocol](https://a2aprotocol.ai/)
-- [Docker Documentation](https://docs.docker.com/)
+**Happy agent building!** 🤖✨
 
-## 🎉 Getting Started
-
-Ready to build your first multi-protocol agent? 
-
-1. **Start with ACP**: `docker-compose up acp-hello-world`
-2. **Test the implementation**: `./scripts/test_all_agents.sh`
-3. **Explore the code**: Check out `agents/acp-hello-world/`
-4. **Add your protocol**: Follow the "Adding New Agents" guide
-5. **Join the community**: Contribute your implementations!
-
-Happy agent building! 🤖✨
+*Built with ❤️ for the multi-protocol agent community*
