@@ -4,10 +4,10 @@ import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta
+import aiohttp
 
 from orchestrator.discovery import UnifiedDiscoveryService
-from orchestrator.models import ProtocolType, AgentStatus, AgentCapability, DiscoveredAgent
-from tests.fixtures import create_container_info, create_mock_container
+from orchestrator.models import ProtocolType, AgentStatus, AgentCapability, DiscoveredAgent, AgentRegistryEntry
 
 pytestmark = pytest.mark.asyncio
 
@@ -19,16 +19,9 @@ class TestUnifiedDiscoveryService:
     def mock_settings(self):
         """Mock settings for testing"""
         settings = MagicMock()
-        settings.docker_available = True
         settings.discovery_interval_seconds = 60
-        settings.docker_network = "test-network"
+        settings.discovery_timeout_seconds = 5
         return settings
-    
-    @pytest.fixture
-    def mock_docker_client(self):
-        """Mock Docker client"""
-        client = MagicMock()
-        return client
     
     @pytest.fixture
     def discovery_service(self, mock_settings):
@@ -37,121 +30,53 @@ class TestUnifiedDiscoveryService:
             service = UnifiedDiscoveryService()
             return service
     
-    async def test_start_and_stop(self, discovery_service, mock_docker_client):
+    async def test_start_and_stop(self, discovery_service):
         """Test starting and stopping the discovery service"""
-        with patch('docker.from_env', return_value=mock_docker_client):
-            # Mock refresh to avoid actual discovery
-            with patch.object(discovery_service, 'refresh', new_callable=AsyncMock):
-                await discovery_service.start()
-                
-                assert discovery_service._running is True
-                assert discovery_service.docker_client is not None
-                assert discovery_service._discovery_task is not None
-                
-                await discovery_service.stop()
-                
-                assert discovery_service._running is False
-    
-    async def test_start_without_docker(self, discovery_service):
-        """Test starting when Docker is not available"""
-        discovery_service.settings.docker_available = False
-        
+        # Mock refresh to avoid actual HTTP discovery
         with patch.object(discovery_service, 'refresh', new_callable=AsyncMock):
             await discovery_service.start()
             
             assert discovery_service._running is True
-            assert discovery_service.docker_client is None
+            assert discovery_service._discovery_task is not None
+            assert len(discovery_service.agent_registry) == 0  # No agents discovered yet
+            
+            await discovery_service.stop()
+            
+            assert discovery_service._running is False
     
-    async def test_get_agent_containers(self, discovery_service, mock_docker_client):
-        """Test getting agent containers from Docker"""
-        # Create mock containers
-        agent_container = create_mock_container(create_container_info(protocol="acp"))
-        non_agent_container = create_mock_container({
-            "Id": "non-agent-123",
-            "Names": ["/regular-container"],
-            "Config": {"Labels": {"some.label": "value"}}
-        })
-        
-        mock_docker_client.containers.list.return_value = [
-            agent_container,
-            non_agent_container
+    async def test_http_discovery_success(self, discovery_service):
+        """Test successful HTTP-based agent discovery"""
+        # Mock HTTP responses for known endpoints
+        mock_agents = [
+            DiscoveredAgent(
+                agent_id="acp-hello-world",
+                name="Hello World Agent",
+                protocol=ProtocolType.ACP,
+                endpoint="http://localhost:8000",
+                capabilities=[
+                    AgentCapability(name="greeting", description="Generate greetings")
+                ],
+                status=AgentStatus.HEALTHY,
+                discovered_at=datetime.utcnow(),
+                last_seen=datetime.utcnow()
+            )
         ]
         
-        discovery_service.docker_client = mock_docker_client
-        
-        containers = discovery_service._get_agent_containers()
-        
-        # Should only return containers with agent labels
-        assert len(containers) == 1
-        assert containers[0] == agent_container
-        
-        # Verify Docker API was called correctly
-        mock_docker_client.containers.list.assert_called_once_with(
-            filters={"network": "test-network"}
-        )
+        with patch.object(discovery_service, '_discover_agents_http', 
+                         new_callable=AsyncMock, return_value=mock_agents):
+            await discovery_service.refresh()
+            
+            assert len(discovery_service.agent_registry) == 1
+            assert "acp-hello-world" in discovery_service.agent_registry
     
-    async def test_discover_container_acp(self, discovery_service):
-        """Test discovering an ACP container"""
-        container_info = create_container_info(protocol="acp")
-        mock_container = create_mock_container(container_info)
-        
-        # Mock the ACP discovery strategy
-        mock_agent = DiscoveredAgent(
-            agent_id="acp-test-agent",
-            name="Test ACP Agent",
-            protocol=ProtocolType.ACP,
-            endpoint="http://test:8000",
-            capabilities=[AgentCapability(name="test", description="Test")]
-        )
-        
-        with patch('orchestrator.discovery.get_discovery_strategy') as mock_get_strategy:
-            mock_strategy = AsyncMock()
-            mock_strategy.discover.return_value = mock_agent
-            mock_get_strategy.return_value = mock_strategy
+    async def test_http_discovery_failure(self, discovery_service):
+        """Test HTTP discovery with connection failures"""
+        with patch.object(discovery_service, '_discover_agents_http', 
+                         new_callable=AsyncMock, side_effect=aiohttp.ClientError("Connection failed")):
+            # Should not raise exception, just log error
+            await discovery_service.refresh()
             
-            agent = await discovery_service._discover_container(mock_container)
-            
-            assert agent is not None
-            assert agent.agent_id == "acp-test-agent"
-            assert agent.protocol == ProtocolType.ACP
-            
-            # Verify strategy was called correctly
-            mock_get_strategy.assert_called_once_with("acp")
-            mock_strategy.discover.assert_called_once_with(container_info)
-    
-    async def test_discover_container_skip_orchestrator(self, discovery_service):
-        """Test that orchestrator containers are skipped"""
-        container_info = create_container_info(protocol="orchestrator")
-        mock_container = create_mock_container(container_info)
-        
-        agent = await discovery_service._discover_container(mock_container)
-        
-        # Should return None for orchestrator containers
-        assert agent is None
-    
-    async def test_discover_container_unknown_protocol(self, discovery_service):
-        """Test discovering container with unknown protocol"""
-        container_info = create_container_info(protocol="unknown")
-        mock_container = create_mock_container(container_info)
-        
-        # Mock the generic discovery strategy
-        mock_agent = DiscoveredAgent(
-            agent_id="generic-test-agent",
-            name="Test Generic Agent",
-            protocol=ProtocolType.CUSTOM,
-            endpoint="http://test:8000",
-            capabilities=[]
-        )
-        
-        with patch('orchestrator.discovery.get_discovery_strategy') as mock_get_strategy:
-            mock_strategy = AsyncMock()
-            mock_strategy.discover.return_value = mock_agent
-            mock_get_strategy.return_value = mock_strategy
-            
-            agent = await discovery_service._discover_container(mock_container)
-            
-            assert agent is not None
-            assert agent.protocol == ProtocolType.CUSTOM
+            assert len(discovery_service.agent_registry) == 0
     
     async def test_update_registry_new_agent(self, discovery_service):
         """Test updating registry with a new agent"""
@@ -159,94 +84,78 @@ class TestUnifiedDiscoveryService:
             agent_id="new-agent",
             name="New Agent",
             protocol=ProtocolType.ACP,
-            endpoint="http://test:8000",
-            capabilities=[]
+            endpoint="http://localhost:8001",
+            capabilities=[AgentCapability(name="test", description="Test capability")],
+            status=AgentStatus.HEALTHY,
+            discovered_at=datetime.utcnow(),
+            last_seen=datetime.utcnow()
         )
         
-        # Mock health check
-        with patch('orchestrator.discovery.get_discovery_strategy') as mock_get_strategy:
-            mock_strategy = AsyncMock()
-            mock_strategy.health_check.return_value = AgentStatus.HEALTHY
-            mock_get_strategy.return_value = mock_strategy
-            
-            await discovery_service._update_registry([agent])
-            
-            assert len(discovery_service.agent_registry) == 1
-            assert "new-agent" in discovery_service.agent_registry
-            
-            entry = discovery_service.agent_registry["new-agent"]
-            assert entry.agent.agent_id == "new-agent"
-            assert entry.agent.status == AgentStatus.HEALTHY
-            assert entry.consecutive_failures == 0
+        await discovery_service._update_registry([agent])
+        
+        assert len(discovery_service.agent_registry) == 1
+        assert "new-agent" in discovery_service.agent_registry
+        assert discovery_service.agent_registry["new-agent"].last_seen is not None
     
     async def test_update_registry_existing_agent(self, discovery_service):
-        """Test updating registry with an existing agent"""
-        # Create existing registry entry
-        from orchestrator.models import AgentRegistryEntry
-        
-        old_agent = DiscoveredAgent(
+        """Test updating registry with existing agent"""
+        agent = DiscoveredAgent(
             agent_id="existing-agent",
-            name="Old Agent",
+            name="Existing Agent",
             protocol=ProtocolType.ACP,
-            endpoint="http://test:8000",
-            capabilities=[]
+            endpoint="http://localhost:8002",
+            capabilities=[AgentCapability(name="test", description="Test capability")],
+            status=AgentStatus.HEALTHY,
+            discovered_at=datetime.utcnow()
         )
         
-        entry = AgentRegistryEntry(agent=old_agent)
-        entry.mark_failure()  # Add some failures
-        entry.mark_failure()
-        discovery_service.agent_registry["existing-agent"] = entry
+        # Add agent to registry first as AgentRegistryEntry
+        old_time = datetime.utcnow() - timedelta(minutes=5)
+        registry_entry = AgentRegistryEntry(agent=agent, last_seen=old_time)
+        discovery_service.agent_registry["existing-agent"] = registry_entry
         
-        # Update with new agent info
-        new_agent = DiscoveredAgent(
+        # Update with newer agent
+        updated_agent = DiscoveredAgent(
             agent_id="existing-agent",
-            name="Updated Agent",
+            name="Existing Agent Updated",
             protocol=ProtocolType.ACP,
-            endpoint="http://test:8000",
-            capabilities=[]
+            endpoint="http://localhost:8002",
+            capabilities=[AgentCapability(name="test", description="Test capability")],
+            status=AgentStatus.HEALTHY,
+            discovered_at=datetime.utcnow()
         )
         
-        # Mock health check
-        with patch('orchestrator.discovery.get_discovery_strategy') as mock_get_strategy:
-            mock_strategy = AsyncMock()
-            mock_strategy.health_check.return_value = AgentStatus.HEALTHY
-            mock_get_strategy.return_value = mock_strategy
-            
-            await discovery_service._update_registry([new_agent])
-            
-            # Should update existing entry and reset failures
-            assert len(discovery_service.agent_registry) == 1
-            entry = discovery_service.agent_registry["existing-agent"]
-            assert entry.agent.name == "Updated Agent"
-            assert entry.consecutive_failures == 0
+        await discovery_service._update_registry([updated_agent])
+        
+        assert len(discovery_service.agent_registry) == 1
+        registry_entry = discovery_service.agent_registry["existing-agent"]
+        assert registry_entry.last_seen > old_time
+        assert registry_entry.agent.name == "Existing Agent Updated"
     
     async def test_get_healthy_agents(self, discovery_service):
-        """Test getting only healthy agents"""
-        from orchestrator.models import AgentRegistryEntry
-        
-        # Create agents with different health statuses
+        """Test getting healthy agents from registry"""
         healthy_agent = DiscoveredAgent(
             agent_id="healthy-agent",
             name="Healthy Agent",
             protocol=ProtocolType.ACP,
-            endpoint="http://test:8000",
+            endpoint="http://localhost:8001",
             capabilities=[],
-            status=AgentStatus.HEALTHY
+            status=AgentStatus.HEALTHY,
+            discovered_at=datetime.utcnow()
         )
         
         unhealthy_agent = DiscoveredAgent(
-            agent_id="unhealthy-agent",
+            agent_id="unhealthy-agent", 
             name="Unhealthy Agent",
             protocol=ProtocolType.ACP,
-            endpoint="http://test:8001",
+            endpoint="http://localhost:8002",
             capabilities=[],
-            status=AgentStatus.UNHEALTHY
+            status=AgentStatus.UNHEALTHY,
+            discovered_at=datetime.utcnow()
         )
         
-        discovery_service.agent_registry = {
-            "healthy-agent": AgentRegistryEntry(agent=healthy_agent),
-            "unhealthy-agent": AgentRegistryEntry(agent=unhealthy_agent)
-        }
+        discovery_service.agent_registry["healthy-agent"] = AgentRegistryEntry(agent=healthy_agent)
+        discovery_service.agent_registry["unhealthy-agent"] = AgentRegistryEntry(agent=unhealthy_agent)
         
         healthy_agents = await discovery_service.get_healthy_agents()
         
@@ -254,29 +163,29 @@ class TestUnifiedDiscoveryService:
         assert healthy_agents[0].agent_id == "healthy-agent"
     
     async def test_get_agents_by_protocol(self, discovery_service):
-        """Test getting agents by protocol type"""
-        from orchestrator.models import AgentRegistryEntry
-        
+        """Test filtering agents by protocol"""
         acp_agent = DiscoveredAgent(
             agent_id="acp-agent",
             name="ACP Agent",
             protocol=ProtocolType.ACP,
-            endpoint="http://test:8000",
-            capabilities=[]
+            endpoint="http://localhost:8001",
+            capabilities=[],
+            status=AgentStatus.HEALTHY,
+            discovered_at=datetime.utcnow()
         )
         
-        a2a_agent = DiscoveredAgent(
-            agent_id="a2a-agent",
-            name="A2A Agent",
-            protocol=ProtocolType.A2A,
-            endpoint="http://test:8001",
-            capabilities=[]
+        mcp_agent = DiscoveredAgent(
+            agent_id="mcp-agent",
+            name="MCP Agent", 
+            protocol=ProtocolType.MCP,
+            endpoint="http://localhost:8002",
+            capabilities=[],
+            status=AgentStatus.HEALTHY,
+            discovered_at=datetime.utcnow()
         )
         
-        discovery_service.agent_registry = {
-            "acp-agent": AgentRegistryEntry(agent=acp_agent),
-            "a2a-agent": AgentRegistryEntry(agent=a2a_agent)
-        }
+        discovery_service.agent_registry["acp-agent"] = AgentRegistryEntry(agent=acp_agent)
+        discovery_service.agent_registry["mcp-agent"] = AgentRegistryEntry(agent=mcp_agent)
         
         acp_agents = await discovery_service.get_agents_by_protocol(ProtocolType.ACP)
         
@@ -284,167 +193,141 @@ class TestUnifiedDiscoveryService:
         assert acp_agents[0].agent_id == "acp-agent"
     
     async def test_get_agents_by_capability(self, discovery_service):
-        """Test getting agents by capability"""
-        from orchestrator.models import AgentRegistryEntry
-        
-        greeting_cap = AgentCapability(name="greeting", description="Greeting capability")
-        math_cap = AgentCapability(name="math", description="Math capability")
-        
-        agent1 = DiscoveredAgent(
-            agent_id="agent1",
-            name="Agent 1",
+        """Test filtering agents by capability"""
+        agent_with_greeting = DiscoveredAgent(
+            agent_id="greeting-agent",
+            name="Greeting Agent",
             protocol=ProtocolType.ACP,
-            endpoint="http://test:8000",
-            capabilities=[greeting_cap, math_cap]
+            endpoint="http://localhost:8001",
+            capabilities=[
+                AgentCapability(name="greeting", description="Generate greetings"),
+                AgentCapability(name="translation", description="Translate text")
+            ],
+            status=AgentStatus.HEALTHY,
+            discovered_at=datetime.utcnow()
         )
         
-        agent2 = DiscoveredAgent(
-            agent_id="agent2",
-            name="Agent 2", 
-            protocol=ProtocolType.A2A,
-            endpoint="http://test:8001",
-            capabilities=[math_cap]
+        agent_without_greeting = DiscoveredAgent(
+            agent_id="other-agent",
+            name="Other Agent",
+            protocol=ProtocolType.ACP,
+            endpoint="http://localhost:8002",
+            capabilities=[
+                AgentCapability(name="calculation", description="Perform calculations")
+            ],
+            status=AgentStatus.HEALTHY,
+            discovered_at=datetime.utcnow()
         )
         
-        discovery_service.agent_registry = {
-            "agent1": AgentRegistryEntry(agent=agent1),
-            "agent2": AgentRegistryEntry(agent=agent2)
-        }
-        
-        math_agents = await discovery_service.get_agents_by_capability("math")
-        
-        assert len(math_agents) == 2
+        discovery_service.agent_registry["greeting-agent"] = AgentRegistryEntry(agent=agent_with_greeting)
+        discovery_service.agent_registry["other-agent"] = AgentRegistryEntry(agent=agent_without_greeting)
         
         greeting_agents = await discovery_service.get_agents_by_capability("greeting")
         
         assert len(greeting_agents) == 1
-        assert greeting_agents[0].agent_id == "agent1"
+        assert greeting_agents[0].agent_id == "greeting-agent"
     
     async def test_cleanup_registry(self, discovery_service):
-        """Test cleanup of old/failed agents"""
-        from orchestrator.models import AgentRegistryEntry
-        
-        # Create old agent (should be removed)
-        old_agent = DiscoveredAgent(
-            agent_id="old-agent",
-            name="Old Agent",
+        """Test cleanup of stale agents"""
+        # Create agents with different last_seen times
+        recent_agent = DiscoveredAgent(
+            agent_id="recent-agent",
+            name="Recent Agent",
             protocol=ProtocolType.ACP,
-            endpoint="http://test:8000",
-            capabilities=[]
+            endpoint="http://localhost:8001",
+            capabilities=[],
+            status=AgentStatus.HEALTHY,
+            discovered_at=datetime.utcnow()
         )
-        old_entry = AgentRegistryEntry(agent=old_agent)
-        old_entry.last_seen = datetime.utcnow() - timedelta(hours=2)
         
-        # Create failed agent (should be removed)
-        failed_agent = DiscoveredAgent(
-            agent_id="failed-agent",
-            name="Failed Agent",
+        stale_agent = DiscoveredAgent(
+            agent_id="stale-agent",
+            name="Stale Agent",
             protocol=ProtocolType.ACP,
-            endpoint="http://test:8001",
-            capabilities=[]
+            endpoint="http://localhost:8002",
+            capabilities=[],
+            status=AgentStatus.HEALTHY,
+            discovered_at=datetime.utcnow()
         )
-        failed_entry = AgentRegistryEntry(agent=failed_agent)
-        for _ in range(6):  # Exceed default max failures
-            failed_entry.mark_failure()
         
-        # Create healthy agent (should be kept)
-        healthy_agent = DiscoveredAgent(
-            agent_id="healthy-agent",
-            name="Healthy Agent",
-            protocol=ProtocolType.ACP,
-            endpoint="http://test:8002",
-            capabilities=[]
+        # Add entries with different last_seen times
+        discovery_service.agent_registry["recent-agent"] = AgentRegistryEntry(
+            agent=recent_agent, 
+            last_seen=datetime.utcnow()  # Recent
         )
-        healthy_entry = AgentRegistryEntry(agent=healthy_agent)
+        discovery_service.agent_registry["stale-agent"] = AgentRegistryEntry(
+            agent=stale_agent, 
+            last_seen=datetime.utcnow() - timedelta(hours=2)  # Stale
+        )
         
-        discovery_service.agent_registry = {
-            "old-agent": old_entry,
-            "failed-agent": failed_entry,
-            "healthy-agent": healthy_entry
-        }
-        
+        # Cleanup uses hardcoded 1 hour threshold 
         discovery_service._cleanup_registry()
         
-        # Only healthy agent should remain
+        # Only recent agent should remain
         assert len(discovery_service.agent_registry) == 1
-        assert "healthy-agent" in discovery_service.agent_registry
-    
-    def test_get_registry_stats(self, discovery_service):
-        """Test getting registry statistics"""
-        from orchestrator.models import AgentRegistryEntry
-        
-        # Create agents with different statuses
-        agents = [
-            DiscoveredAgent(
-                agent_id="healthy-acp",
-                name="Healthy ACP",
-                protocol=ProtocolType.ACP,
-                endpoint="http://test:8000",
-                capabilities=[],
-                status=AgentStatus.HEALTHY
-            ),
-            DiscoveredAgent(
-                agent_id="degraded-a2a",
-                name="Degraded A2A",
-                protocol=ProtocolType.A2A,
-                endpoint="http://test:8001",
-                capabilities=[],
-                status=AgentStatus.DEGRADED
-            ),
-            DiscoveredAgent(
-                agent_id="unhealthy-acp",
-                name="Unhealthy ACP",
-                protocol=ProtocolType.ACP,
-                endpoint="http://test:8002",
-                capabilities=[],
-                status=AgentStatus.UNHEALTHY
-            )
-        ]
-        
-        discovery_service.agent_registry = {
-            agent.agent_id: AgentRegistryEntry(agent=agent)
-            for agent in agents
-        }
-        
-        stats = discovery_service.get_registry_stats()
-        
-        assert stats["total_agents"] == 3
-        assert stats["healthy_agents"] == 1
-        assert stats["degraded_agents"] == 1
-        assert stats["unhealthy_agents"] == 1
-        assert stats["by_protocol"]["acp"] == 2
-        assert stats["by_protocol"]["a2a"] == 1
+        assert "recent-agent" in discovery_service.agent_registry
+        assert "stale-agent" not in discovery_service.agent_registry
     
     async def test_mark_agent_request(self, discovery_service):
-        """Test marking agent request"""
-        from orchestrator.models import AgentRegistryEntry
-        
+        """Test marking agent request for metrics"""
         agent = DiscoveredAgent(
             agent_id="test-agent",
             name="Test Agent",
             protocol=ProtocolType.ACP,
-            endpoint="http://test:8000",
-            capabilities=[]
+            endpoint="http://localhost:8001",
+            capabilities=[],
+            status=AgentStatus.HEALTHY,
+            discovered_at=datetime.utcnow()
         )
         
-        entry = AgentRegistryEntry(agent=agent)
-        discovery_service.agent_registry["test-agent"] = entry
+        discovery_service.agent_registry["test-agent"] = AgentRegistryEntry(agent=agent)
         
         await discovery_service.mark_agent_request("test-agent")
         
-        assert entry.request_count == 1
-        assert entry.last_request is not None
+        # Check that agent's request count was updated
+        registry_entry = discovery_service.agent_registry["test-agent"]
+        assert registry_entry.request_count == 1
+        assert registry_entry.last_request is not None
     
-    async def test_is_healthy(self, discovery_service, mock_docker_client):
-        """Test health check of discovery service"""
-        # Service not running
-        assert await discovery_service.is_healthy() is False
-        
-        # Service running with Docker client
+    async def test_is_healthy(self, discovery_service):
+        """Test discovery service health check"""
+        # The is_healthy method checks if discovery service itself is healthy
         discovery_service._running = True
-        discovery_service.docker_client = mock_docker_client
+        
         assert await discovery_service.is_healthy() is True
         
-        # Service running without Docker client
-        discovery_service.docker_client = None
-        assert await discovery_service.is_healthy() is True  # Still healthy, just limited
+        discovery_service._running = False
+        assert await discovery_service.is_healthy() is False
+    
+    def test_get_registry_stats(self, discovery_service):
+        """Test getting registry statistics"""
+        # Add some mock agents
+        agent1 = DiscoveredAgent(
+            agent_id="agent1",
+            name="Agent 1",
+            protocol=ProtocolType.ACP,
+            endpoint="http://localhost:8001",
+            capabilities=[],
+            status=AgentStatus.HEALTHY,
+            discovered_at=datetime.utcnow()
+        )
+        
+        agent2 = DiscoveredAgent(
+            agent_id="agent2",
+            name="Agent 2",
+            protocol=ProtocolType.MCP,
+            endpoint="http://localhost:8002",
+            capabilities=[],
+            status=AgentStatus.UNHEALTHY,
+            discovered_at=datetime.utcnow()
+        )
+        
+        discovery_service.agent_registry["agent1"] = AgentRegistryEntry(agent=agent1)
+        discovery_service.agent_registry["agent2"] = AgentRegistryEntry(agent=agent2)
+        
+        stats = discovery_service.get_registry_stats()
+        
+        assert stats["total_agents"] == 2
+        assert stats["healthy_agents"] == 1
+        assert stats["by_protocol"]["acp"] == 1
+        assert stats["by_protocol"]["mcp"] == 1
