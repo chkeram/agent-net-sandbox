@@ -140,6 +140,7 @@ markers = [
     "unit: marks tests as unit tests",
     "docker: marks tests that require Docker",
     "llm: marks tests that use LLM providers",
+    "asyncio: marks tests as async (deselect with '-m \"not asyncio\"')",
 ]
 filterwarnings = [
     "error",

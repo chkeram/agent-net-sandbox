@@ -306,6 +306,10 @@ class UnifiedDiscoveryService:
         entry = self.agent_registry.get(agent_id)
         return entry.agent if entry else None
     
+    async def get_agent_by_id(self, agent_id: str) -> Optional[DiscoveredAgent]:
+        """Get specific agent by ID (alias for get_agent)"""
+        return await self.get_agent(agent_id)
+    
     async def get_agents_by_protocol(
         self,
         protocol: ProtocolType

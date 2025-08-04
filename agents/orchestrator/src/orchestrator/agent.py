@@ -216,8 +216,8 @@ Be concise but thorough in your analysis. Focus on making the best routing decis
             query = f"""
 User Query: "{request.query}"
 Context: {request.context or 'None'}
-Required Capabilities: {request.required_capabilities or 'None'}
 Preferred Protocol: {request.preferred_protocol or 'Any'}
+Preferred Agent: {request.preferred_agent or 'None'}
 
 Please analyze this query and determine the best agent to handle it. Consider:
 1. What capabilities are needed to answer this query?
@@ -225,7 +225,8 @@ Please analyze this query and determine the best agent to handle it. Consider:
 3. What is the best match based on agent specialization?
 4. How confident are you in this routing decision?
 
-Return a routing decision with the selected agent ID, confidence score, and reasoning.
+Use the available tools to get information about agents and their capabilities.
+Return a routing decision with the selected agent, confidence score, and reasoning.
             """.strip()
             
             # Run the AI agent
@@ -235,48 +236,51 @@ Return a routing decision with the selected agent ID, confidence score, and reas
             routing_decision = result.data
             
             # Update metrics
-            duration = (datetime.utcnow() - start_time).total_seconds()
+            duration_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+            routing_decision.decision_time_ms = duration_ms
+            routing_decision.llm_provider = self.settings.llm_provider
+            
             self.metrics.total_requests += 1
-            self.metrics.total_duration += duration
             
-            if routing_decision.selected_agent_id:
-                self.metrics.successful_routings += 1
-            
-            # Mark the selected agent as used
-            if routing_decision.selected_agent_id:
-                await self.discovery_service.mark_agent_request(routing_decision.selected_agent_id)
+            if routing_decision.selected_agent:
+                self.metrics.successful_requests += 1
+                # Mark the selected agent as used
+                await self.discovery_service.mark_agent_request(routing_decision.selected_agent.agent_id)
+            else:
+                self.metrics.failed_requests += 1
             
             logger.info(
                 "Request routed successfully",
                 query=request.query[:100] + "..." if len(request.query) > 100 else request.query,
-                selected_agent=routing_decision.selected_agent_id,
+                selected_agent=routing_decision.selected_agent.agent_id if routing_decision.selected_agent else None,
                 confidence=routing_decision.confidence,
-                duration=duration
+                duration_ms=duration_ms
             )
             
             return routing_decision
             
         except Exception as e:
-            duration = (datetime.utcnow() - start_time).total_seconds()
+            duration_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
             self.metrics.total_requests += 1
-            self.metrics.total_duration += duration
-            self.metrics.failed_routings += 1
+            self.metrics.failed_requests += 1
             
             logger.error(
                 "Request routing failed",
                 query=request.query[:100] + "..." if len(request.query) > 100 else request.query,
                 error=str(e),
-                duration=duration
+                duration_ms=duration_ms
             )
             
             # Return a fallback decision
             return RoutingDecision(
-                selected_agent_id=None,
+                request_id=request.request_id,
+                selected_agent=None,
                 confidence=0.0,
                 reasoning=f"Routing failed due to error: {str(e)}",
                 alternative_agents=[],
-                estimated_response_time=30.0,
-                requires_aggregation=False
+                error=str(e),
+                decision_time_ms=duration_ms,
+                llm_provider=self.settings.llm_provider
             )
     
     async def process_request(self, request: RoutingRequest) -> AgentResponse:
@@ -287,35 +291,41 @@ Return a routing decision with the selected agent ID, confidence score, and reas
             # First, route the request
             routing_decision = await self.route_request(request)
             
-            if not routing_decision.selected_agent_id:
+            if not routing_decision.selected_agent:
                 return AgentResponse(
+                    request_id=request.request_id,
+                    agent_id="none",
+                    protocol=ProtocolType.CUSTOM,
+                    response_data=None,
+                    duration_ms=(datetime.utcnow() - start_time).total_seconds() * 1000,
                     success=False,
-                    data=None,
                     error="No suitable agent found for this request",
-                    duration=(datetime.utcnow() - start_time).total_seconds(),
-                    agent_id=None,
                     metadata={
-                        "routing_decision": routing_decision.dict(),
+                        "routing_decision": routing_decision.model_dump(),
                         "reason": "no_agent_selected"
                     }
                 )
             
-            # Get the selected agent details
-            agents = await self.discovery_service.get_healthy_agents()
-            selected_agent = next(
-                (agent for agent in agents if agent.agent_id == routing_decision.selected_agent_id),
-                None
+            # Use the selected agent from routing decision
+            selected_agent = routing_decision.selected_agent
+            
+            # Verify agent is still healthy
+            healthy_agents = await self.discovery_service.get_healthy_agents()
+            agent_still_healthy = any(
+                agent.agent_id == selected_agent.agent_id for agent in healthy_agents
             )
             
-            if not selected_agent:
+            if not agent_still_healthy:
                 return AgentResponse(
+                    request_id=request.request_id,
+                    agent_id=selected_agent.agent_id,
+                    protocol=selected_agent.protocol,
+                    response_data=None,
+                    duration_ms=(datetime.utcnow() - start_time).total_seconds() * 1000,
                     success=False,
-                    data=None,
-                    error=f"Selected agent {routing_decision.selected_agent_id} is not available",
-                    duration=(datetime.utcnow() - start_time).total_seconds(),
-                    agent_id=routing_decision.selected_agent_id,
+                    error=f"Selected agent {selected_agent.agent_id} is no longer available",
                     metadata={
-                        "routing_decision": routing_decision.dict(),
+                        "routing_decision": routing_decision.model_dump(),
                         "reason": "agent_not_available"
                     }
                 )
@@ -324,37 +334,41 @@ Return a routing decision with the selected agent ID, confidence score, and reas
             # This is a placeholder - actual implementation would depend on the protocol
             response_data = await self._execute_on_agent(selected_agent, request)
             
-            duration = (datetime.utcnow() - start_time).total_seconds()
+            duration_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
             
             return AgentResponse(
-                success=True,
-                data=response_data,
-                error=None,
-                duration=duration,
+                request_id=request.request_id,
                 agent_id=selected_agent.agent_id,
+                protocol=selected_agent.protocol,
+                response_data=response_data,
+                duration_ms=duration_ms,
+                success=True,
+                error=None,
                 metadata={
-                    "routing_decision": routing_decision.dict(),
+                    "routing_decision": routing_decision.model_dump(),
                     "agent_protocol": selected_agent.protocol.value,
                     "agent_capabilities": [cap.name for cap in selected_agent.capabilities]
                 }
             )
             
         except Exception as e:
-            duration = (datetime.utcnow() - start_time).total_seconds()
+            duration_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
             
             logger.error(
                 "Request processing failed",
                 query=request.query,
                 error=str(e),
-                duration=duration
+                duration_ms=duration_ms
             )
             
             return AgentResponse(
+                request_id=request.request_id,
+                agent_id="error",
+                protocol=ProtocolType.CUSTOM,
+                response_data=None,
+                duration_ms=duration_ms,
                 success=False,
-                data=None,
                 error=f"Request processing failed: {str(e)}",
-                duration=duration,
-                agent_id=None,
                 metadata={"reason": "processing_error"}
             )
     
@@ -406,5 +420,5 @@ Return a routing decision with the selected agent ID, confidence score, and reas
             "available_agents": agent_count,
             "llm_provider": self.settings.llm_provider.value,
             "model": str(type(self.model).__name__),
-            "metrics": self.metrics.dict()
+            "metrics": self.metrics.model_dump()
         }
