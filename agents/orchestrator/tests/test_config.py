@@ -20,7 +20,7 @@ class TestSettings:
         assert settings.app_name == "Multi-Protocol Agent Orchestrator"
         assert settings.app_version == "0.1.0"
         assert settings.host == "0.0.0.0"
-        assert settings.port == 8000
+        assert settings.port == 8004
         assert settings.llm_provider.value == "openai"
         assert settings.default_model_temperature == 0.7
         assert settings.discovery_interval_seconds == 30  # Default value
@@ -131,31 +131,17 @@ class TestSettings:
             )
         
     
-    def test_docker_availability_check(self):
-        """Test Docker socket availability check"""
-        # Mock existing socket
+    def test_http_discovery_settings(self):
+        """Test HTTP-based discovery configuration"""
         settings = get_settings_for_testing(
             llm_provider="openai",
             openai_api_key="test-key",
-            docker_socket_path="/tmp/test_socket"
+            discovery_interval_seconds=60,
+            discovery_timeout_seconds=10
         )
         
-        # Create mock socket file
-        with open("/tmp/test_socket", "w") as f:
-            f.write("")
-        
-        try:
-            assert settings.docker_available is True
-        finally:
-            os.remove("/tmp/test_socket")
-        
-        # Non-existent socket
-        settings = get_settings_for_testing(
-            llm_provider="openai",
-            openai_api_key="test-key",
-            docker_socket_path="/nonexistent/socket"
-        )
-        assert settings.docker_available is False
+        assert settings.discovery_interval_seconds == 60
+        assert settings.discovery_timeout_seconds == 10
     
     def test_provider_config_errors(self):
         """Test provider configuration error handling"""
