@@ -5,6 +5,8 @@ from typing import Optional, Literal, List
 from functools import lru_cache
 import os
 
+from .models import LLMProvider
+
 
 class Settings(BaseSettings):
     """Application settings with environment variable support"""
@@ -28,7 +30,7 @@ class Settings(BaseSettings):
     workers: int = 1
     
     # LLM Provider settings
-    llm_provider: Literal["openai", "anthropic", "both"] = "both"
+    llm_provider: LLMProvider = LLMProvider.OPENAI
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     default_model_temperature: float = 0.7
@@ -84,10 +86,13 @@ class Settings(BaseSettings):
                 if self.environment == "production":
                     raise ValueError("Anthropic API key is required in production")
         
-        # At least one provider must be configured
-        if self.llm_provider == "both":
-            if not self.openai_api_key and not self.anthropic_api_key:
-                raise ValueError("At least one LLM provider API key must be configured")
+        # Validate LLM provider configuration
+        if self.llm_provider == LLMProvider.OPENAI and not self.openai_api_key:
+            if self.environment == "production":
+                raise ValueError("OpenAI API key is required for OpenAI provider")
+        elif self.llm_provider == LLMProvider.ANTHROPIC and not self.anthropic_api_key:
+            if self.environment == "production":
+                raise ValueError("Anthropic API key is required for Anthropic provider")
         
         # Validate numeric ranges
         if not 0.0 <= self.default_model_temperature <= 2.0:

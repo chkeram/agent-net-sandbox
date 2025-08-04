@@ -1,6 +1,6 @@
 """Data models for the Multi-Protocol Agent Orchestrator"""
 
-from pydantic import BaseModel, Field, ConfigDict, validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import Optional, Dict, Any, List, Literal, Union
 from datetime import datetime
 from enum import Enum
@@ -43,7 +43,8 @@ class AgentCapability(BaseModel):
     )
     tags: List[str] = Field(default_factory=list, description="Capability tags")
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         if not v or not v.strip():
             raise ValueError("Capability name cannot be empty")
@@ -78,13 +79,15 @@ class DiscoveredAgent(BaseModel):
     container_id: Optional[str] = Field(None, description="Docker container ID")
     version: Optional[str] = Field(None, description="Agent version")
     
-    @validator('agent_id')
+    @field_validator('agent_id')
+    @classmethod
     def validate_agent_id(cls, v):
         if not v or not v.strip():
             raise ValueError("Agent ID cannot be empty")
         return v.strip()
     
-    @validator('endpoint')
+    @field_validator('endpoint')
+    @classmethod
     def validate_endpoint(cls, v):
         if not v or not v.startswith(('http://', 'https://')):
             raise ValueError("Endpoint must be a valid HTTP/HTTPS URL")
@@ -130,7 +133,8 @@ class RoutingRequest(BaseModel):
         gt=0
     )
     
-    @validator('query')
+    @field_validator('query')
+    @classmethod
     def validate_query(cls, v):
         if not v or not v.strip():
             raise ValueError("Query cannot be empty")
