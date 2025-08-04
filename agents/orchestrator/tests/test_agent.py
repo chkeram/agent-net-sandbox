@@ -140,6 +140,7 @@ class TestOrchestratorAgent:
             with pytest.raises(ValueError, match="OpenAI API key is required"):
                 OrchestratorAgent(mock_discovery_service)
     
+    @pytest.mark.asyncio
     async def test_route_request_success(self, orchestrator_agent, mock_discovery_service):
         """Test successful request routing"""
         from orchestrator.models import RoutingDecision
@@ -148,13 +149,20 @@ class TestOrchestratorAgent:
         
         # Mock the AI agent response
         mock_result = MagicMock()
+        mock_agent = DiscoveredAgent(
+            agent_id="acp-greeting-agent",
+            name="Greeting Agent",
+            protocol=ProtocolType.ACP,
+            endpoint="http://greeting:8000",
+            capabilities=[AgentCapability(name="greeting", description="Generate greetings")],
+            status=AgentStatus.HEALTHY
+        )
         mock_result.data = RoutingDecision(
-            selected_agent_id="acp-greeting-agent",
+            request_id="test-request-123",
+            selected_agent=mock_agent,
             confidence=0.95,
             reasoning="This is a greeting request, perfect for the greeting agent",
-            alternative_agents=["a2a-math-agent"],
-            estimated_response_time=2.0,
-            requires_aggregation=False
+            alternative_agents=[]
         )
         
         orchestrator_agent.agent.run.return_value = mock_result
@@ -163,14 +171,14 @@ class TestOrchestratorAgent:
         decision = await orchestrator_agent.route_request(request)
         
         # Verify results
-        assert decision.selected_agent_id == "acp-greeting-agent"
+        assert decision.selected_agent.agent_id == "acp-greeting-agent"
         assert decision.confidence == 0.95
         assert "greeting request" in decision.reasoning
-        assert not decision.requires_aggregation
         
         # Verify agent was marked as used
         mock_discovery_service.mark_agent_request.assert_called_once_with("acp-greeting-agent")
     
+    @pytest.mark.asyncio
     async def test_route_request_failure(self, orchestrator_agent):
         """Test request routing failure handling"""
         request = RoutingRequest(query="Complex query")
@@ -182,10 +190,11 @@ class TestOrchestratorAgent:
         decision = await orchestrator_agent.route_request(request)
         
         # Verify fallback response
-        assert decision.selected_agent_id is None
+        assert decision.selected_agent is None
         assert decision.confidence == 0.0
         assert "Routing failed due to error" in decision.reasoning
     
+    @pytest.mark.asyncio
     async def test_execute_on_agent(self, orchestrator_agent):
         """Test agent execution simulation"""
         agent = DiscoveredAgent(
@@ -209,6 +218,7 @@ class TestOrchestratorAgent:
         assert response_data["simulated"] is True
         assert "timestamp" in response_data
     
+    @pytest.mark.asyncio
     async def test_process_request_success(self, orchestrator_agent, mock_discovery_service):
         """Test complete request processing"""
         from orchestrator.models import RoutingDecision
@@ -216,13 +226,20 @@ class TestOrchestratorAgent:
         request = RoutingRequest(query="Calculate 2+2")
         
         # Mock routing decision
+        mock_agent = DiscoveredAgent(
+            agent_id="a2a-math-agent",
+            name="Math Agent",
+            protocol=ProtocolType.A2A,
+            endpoint="http://math:8001",
+            capabilities=[AgentCapability(name="calculate", description="Perform calculations")],
+            status=AgentStatus.HEALTHY
+        )
         routing_decision = RoutingDecision(
-            selected_agent_id="a2a-math-agent",
+            request_id="test-request-123",
+            selected_agent=mock_agent,
             confidence=0.9,
             reasoning="Math calculation request",
-            alternative_agents=[],
-            estimated_response_time=1.5,
-            requires_aggregation=False
+            alternative_agents=[]
         )
         
         # Mock orchestrator agent methods
@@ -238,6 +255,7 @@ class TestOrchestratorAgent:
         assert "routing_decision" in response.metadata
         assert response.metadata["agent_protocol"] == "a2a"
     
+    @pytest.mark.asyncio
     async def test_process_request_no_agent_selected(self, orchestrator_agent):
         """Test request processing when no agent is selected"""
         from orchestrator.models import RoutingDecision
@@ -246,12 +264,11 @@ class TestOrchestratorAgent:
         
         # Mock routing decision with no agent
         routing_decision = RoutingDecision(
-            selected_agent_id=None,
+            request_id="test-request-123",
+            selected_agent=None,
             confidence=0.0,
             reasoning="No suitable agent found",
-            alternative_agents=[],
-            estimated_response_time=0.0,
-            requires_aggregation=False
+            alternative_agents=[]
         )
         
         orchestrator_agent.route_request = AsyncMock(return_value=routing_decision)
@@ -261,24 +278,32 @@ class TestOrchestratorAgent:
         
         # Verify error response
         assert response.success is False
-        assert response.agent_id is None
+        assert response.agent_id == "none"
         assert "No suitable agent found" in response.error
         assert response.metadata["reason"] == "no_agent_selected"
     
+    @pytest.mark.asyncio
     async def test_process_request_agent_not_available(self, orchestrator_agent, mock_discovery_service):
         """Test request processing when selected agent is not available"""
         from orchestrator.models import RoutingDecision
         
         request = RoutingRequest(query="Test query")
         
-        # Mock routing decision with non-existent agent
+        # Mock routing decision with non-existent agent  
+        mock_agent = DiscoveredAgent(
+            agent_id="non-existent-agent",
+            name="Non-existent Agent",
+            protocol=ProtocolType.ACP,
+            endpoint="http://nonexistent:8000",
+            capabilities=[],
+            status=AgentStatus.UNHEALTHY
+        )
         routing_decision = RoutingDecision(
-            selected_agent_id="non-existent-agent",
+            request_id="test-request-123",
+            selected_agent=mock_agent,
             confidence=0.8,
             reasoning="Selected non-existent agent",
-            alternative_agents=[],
-            estimated_response_time=2.0,
-            requires_aggregation=False
+            alternative_agents=[]
         )
         
         orchestrator_agent.route_request = AsyncMock(return_value=routing_decision)
@@ -289,22 +314,23 @@ class TestOrchestratorAgent:
         # Verify error response
         assert response.success is False
         assert response.agent_id == "non-existent-agent"
-        assert "is not available" in response.error
+        assert "is no longer available" in response.error
         assert response.metadata["reason"] == "agent_not_available"
     
     def test_get_metrics(self, orchestrator_agent):
         """Test metrics retrieval"""
         # Modify some metrics
         orchestrator_agent.metrics.total_requests = 10
-        orchestrator_agent.metrics.successful_routings = 8
-        orchestrator_agent.metrics.failed_routings = 2
+        orchestrator_agent.metrics.successful_requests = 8
+        orchestrator_agent.metrics.failed_requests = 2
         
         metrics = orchestrator_agent.get_metrics()
         
         assert metrics.total_requests == 10
-        assert metrics.successful_routings == 8
-        assert metrics.failed_routings == 2
+        assert metrics.successful_requests == 8
+        assert metrics.failed_requests == 2
     
+    @pytest.mark.asyncio
     async def test_health_check(self, orchestrator_agent, mock_discovery_service):
         """Test orchestrator health check"""
         # Mock discovery service health

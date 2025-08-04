@@ -76,17 +76,6 @@ class Settings(BaseSettings):
         """Validate settings and ensure required configurations are present"""
         
         # Validate LLM provider configuration
-        if self.llm_provider in ["openai", "both"]:
-            if not self.openai_api_key:
-                if self.environment == "production":
-                    raise ValueError("OpenAI API key is required in production")
-                
-        if self.llm_provider in ["anthropic", "both"]:
-            if not self.anthropic_api_key:
-                if self.environment == "production":
-                    raise ValueError("Anthropic API key is required in production")
-        
-        # Validate LLM provider configuration
         if self.llm_provider == LLMProvider.OPENAI and not self.openai_api_key:
             if self.environment == "production":
                 raise ValueError("OpenAI API key is required for OpenAI provider")
@@ -107,12 +96,12 @@ class Settings(BaseSettings):
     @property
     def has_openai_config(self) -> bool:
         """Check if OpenAI configuration is available"""
-        return bool(self.openai_api_key) and self.llm_provider in ["openai", "both"]
+        return bool(self.openai_api_key) and self.llm_provider == LLMProvider.OPENAI
     
     @property
     def has_anthropic_config(self) -> bool:
         """Check if Anthropic configuration is available"""
-        return bool(self.anthropic_api_key) and self.llm_provider in ["anthropic", "both"]
+        return bool(self.anthropic_api_key) and self.llm_provider == LLMProvider.ANTHROPIC
     
     @property
     def docker_available(self) -> bool:

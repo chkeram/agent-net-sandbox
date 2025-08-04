@@ -31,7 +31,7 @@ def test_settings() -> Settings:
         environment="development",
         openai_api_key="test-openai-key",
         anthropic_api_key="test-anthropic-key",
-        llm_provider="both",
+        llm_provider="openai",
         discovery_interval_seconds=60,  # Longer for tests
         discovery_timeout_seconds=3,
         docker_network="test-agent-network",
@@ -216,11 +216,11 @@ def env_vars() -> Dict[str, str]:
     return {
         "OPENAI_API_KEY": "test-openai-key",
         "ANTHROPIC_API_KEY": "test-anthropic-key",
-        "LLM_PROVIDER": "both",
-        "DEBUG": "true",
-        "ENVIRONMENT": "development",
-        "DISCOVERY_INTERVAL_SECONDS": "60",
-        "ENABLE_METRICS": "false",
+        "ORCHESTRATOR_LLM_PROVIDER": "openai",
+        "ORCHESTRATOR_DEBUG": "true",
+        "ORCHESTRATOR_ENVIRONMENT": "development",
+        "ORCHESTRATOR_DISCOVERY_INTERVAL_SECONDS": "60",
+        "ORCHESTRATOR_ENABLE_METRICS": "false",
     }
 
 
