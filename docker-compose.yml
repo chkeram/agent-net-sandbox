@@ -1,6 +1,39 @@
 version: '3.8'
 
 services:
+  # Multi-Protocol Agent Orchestrator
+  orchestrator:
+    build:
+      context: ./agents/orchestrator
+      dockerfile: Dockerfile
+    image: agent-orchestrator:latest
+    container_name: agent-orchestrator
+    ports:
+      - "8004:8004"
+    volumes:
+      # Mount logs directory
+      - orchestrator-logs:/app/logs
+      # Mount data directory for persistence
+      - orchestrator-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - agent-network
+    labels:
+      - "agent.protocol=orchestrator"
+      - "agent.type=orchestrator"
+      - "agent.name=Multi-Protocol Agent Orchestrator"
+      - "agent.version=0.1.0"
+      - "agent.capabilities=routing,discovery,management"
+      - "service.description=AI-powered multi-protocol agent orchestrator"
+    depends_on:
+      - acp-hello-world
+
   # ACP Hello World Agent
   acp-hello-world:
     build:
@@ -83,4 +116,8 @@ networks:
 
 volumes:
   agent-data:
+    driver: local
+  orchestrator-logs:
+    driver: local
+  orchestrator-data:
     driver: local

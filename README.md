@@ -11,11 +11,36 @@ A comprehensive development environment for building and testing agents across m
 | **A2A** | 🚧 Coming Soon | 8002 | Agent-to-Agent Communication Protocol |
 | **Custom** | 🚧 Template Ready | 8003+ | Your custom protocol implementations |
 
+## 🎯 Orchestrator Agent
+
+The **Multi-Protocol Agent Orchestrator** is the central intelligence that manages and routes requests across all protocol implementations. It provides unified access to heterogeneous agent ecosystems.
+
+| Component | Status | Port | Description |
+|-----------|--------|------|-------------|
+| **Orchestrator** | ✅ Implemented | 8004 | AI-powered request routing and agent management |
+| **Discovery Service** | ✅ Implemented | - | Real-time agent discovery across protocols |
+| **Routing Engine** | ✅ Implemented | - | Intelligent request-to-agent matching |
+
 ## 🏗️ Project Structure
 
 ```
 agent-net-sandbox/
 ├── agents/                           # Individual agent implementations
+│   ├── orchestrator/                # Multi-Protocol Agent Orchestrator (NEW)
+│   │   ├── src/orchestrator/        # Orchestrator source code
+│   │   │   ├── agent.py            # Pydantic AI routing agent
+│   │   │   ├── discovery.py        # Multi-protocol discovery service
+│   │   │   ├── models.py           # Data models and schemas
+│   │   │   ├── config.py           # Configuration management
+│   │   │   └── protocols/          # Protocol-specific discovery strategies
+│   │   │       ├── acp_discovery.py    # ACP agent discovery
+│   │   │       ├── a2a_discovery.py    # A2A agent discovery (stub)
+│   │   │       ├── mcp_discovery.py    # MCP agent discovery (stub)
+│   │   │       └── base.py             # Base discovery strategy
+│   │   ├── tests/                  # Comprehensive test suite
+│   │   ├── requirements.txt        # Python dependencies
+│   │   ├── pyproject.toml         # Project configuration
+│   │   └── Dockerfile             # Container definition
 │   ├── acp-hello-world/             # ACP Hello World Agent (implemented)
 │   │   ├── src/hello_agent/         # Agent source code
 │   │   ├── agent-manifest.yaml      # AGNTCY manifest
@@ -77,6 +102,194 @@ docker-compose logs -f
 # Test specific protocol
 ./scripts/agents/test_acp.sh
 ```
+
+## 🎯 Multi-Protocol Agent Orchestrator
+
+### Overview
+
+The **Multi-Protocol Agent Orchestrator** is the core innovation of this sandbox - an AI-powered routing system that provides unified access to agents across different protocols. It acts as an intelligent gateway that understands user intent and routes requests to the most appropriate specialized agents.
+
+### 🏗️ Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   User Query    │───▶│   Orchestrator   │───▶│ Protocol Agents │
+│                 │    │                  │    │                 │
+│ "Hello World"   │    │ ┌──────────────┐ │    │ ┌─────────────┐ │
+│ "Calculate 2+2" │    │ │ Pydantic AI  │ │    │ │ ACP Agent   │ │
+│ "Get Weather"   │    │ │ Routing      │ │    │ │ MCP Agent   │ │
+│                 │    │ │ Engine       │ │    │ │ A2A Agent   │ │
+└─────────────────┘    │ └──────────────┘ │    │ │ Custom...   │ │
+                       │                  │    │ └─────────────┘ │
+                       │ ┌──────────────┐ │    └─────────────────┘
+                       │ │ Discovery    │ │           ▲
+                       │ │ Service      │ │           │
+                       │ └──────────────┘ │───────────┘
+                       └──────────────────┘
+                          Real-time Agent
+                            Discovery
+```
+
+### 🔧 Technology Stack
+
+**Core Framework**: Built using cutting-edge AI and Python technologies for maximum flexibility and experimentation:
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **AI Routing** | [Pydantic AI 0.4.11](https://ai.pydantic.dev/) | Multi-LLM agent framework for intelligent routing |
+| **LLM Support** | OpenAI GPT-4o, Anthropic Claude-3.5-Sonnet | Configurable AI models for routing decisions |
+| **Discovery** | Custom Multi-Protocol Discovery Service | Real-time agent discovery across protocols |
+| **Data Models** | Pydantic V2 | Type-safe data validation and serialization |
+| **Configuration** | Pydantic Settings | Environment-based configuration management |
+| **Async Runtime** | Python asyncio | High-performance asynchronous processing |
+| **Container Discovery** | Docker API | Dynamic agent discovery via container labels |
+| **Protocol Support** | ACP, A2A, MCP + Custom | Extensible protocol architecture |
+| **Testing** | pytest + pytest-asyncio | Comprehensive async test coverage |
+| **Logging** | structlog | Structured logging with context |
+
+### 🚀 Key Features
+
+#### 1. **Intelligent Routing**
+- **AI-Powered Decision Making**: Uses Pydantic AI with GPT-4o or Claude-3.5-Sonnet to analyze user queries
+- **Capability Matching**: Automatically matches user intent to agent capabilities
+- **Confidence Scoring**: Provides confidence levels for routing decisions
+- **Fallback Handling**: Graceful handling when no suitable agent is found
+
+#### 2. **Multi-Protocol Discovery**
+- **Real-Time Discovery**: Automatically discovers agents as they come online
+- **Protocol-Specific Strategies**: Tailored discovery for ACP, A2A, MCP protocols
+- **Health Monitoring**: Continuous health checking and agent status tracking
+- **Container-Based**: Uses Docker labels for agent metadata and discovery
+
+#### 3. **Unified Agent Registry**
+- **Centralized Management**: Single registry for all discovered agents
+- **Capability Indexing**: Searchable index of agent capabilities
+- **Performance Metrics**: Request tracking and performance monitoring
+- **Status Management**: Real-time agent health and availability status
+
+#### 4. **Flexible Configuration**
+- **Multi-LLM Support**: Switch between OpenAI and Anthropic models
+- **Environment-Based**: Configuration via environment variables
+- **Protocol Extension**: Easy addition of new protocol support
+- **Development/Production**: Different configurations for different environments
+
+### 📋 Implementation Details
+
+#### Phase 1: Foundation ✅
+- **Project Structure**: Modular architecture with clear separation of concerns
+- **Data Models**: Comprehensive Pydantic models for all data types
+- **Configuration System**: Environment-based settings with validation
+- **Test Infrastructure**: pytest setup with comprehensive fixtures
+
+#### Phase 2: Discovery Service ✅  
+- **Multi-Protocol Discovery**: Unified discovery service with protocol-specific strategies
+- **ACP Discovery**: Full implementation with capabilities and schema fetching
+- **Health Monitoring**: Continuous agent health checking and registry management
+- **Docker Integration**: Container-based agent discovery with label metadata
+
+#### Phase 3: AI Routing Engine ✅
+- **Pydantic AI Integration**: Modern AI agent framework with tool support
+- **Multi-LLM Configuration**: Support for OpenAI GPT-4o and Anthropic Claude
+- **Intelligent Routing**: AI-powered analysis of user queries and agent matching
+- **Request Processing**: Complete request lifecycle from routing to execution
+
+### 🧪 Experimentation Focus
+
+This orchestrator serves as an **experimentation sandbox** for:
+
+#### **LLM Framework Comparison**
+- **Pydantic AI vs LangChain**: Direct comparison of modern AI frameworks
+- **Model Performance**: Testing OpenAI vs Anthropic for routing decisions
+- **Tool Integration**: Evaluation of different function/tool calling approaches
+
+#### **Multi-Protocol Challenges**
+- **Protocol Translation**: Converting requests between different agent protocols
+- **Capability Mapping**: Standardizing capability descriptions across protocols
+- **Discovery Strategies**: Optimizing discovery for different protocol types
+
+#### **Scaling Patterns**
+- **Load Distribution**: Intelligent routing based on agent load and performance
+- **Fallback Strategies**: Handling agent failures and unavailability
+- **Request Aggregation**: Combining responses from multiple agents
+
+### 🔍 Discovery Mechanisms
+
+```python
+# Example: ACP Agent Discovery
+{
+  "agent_id": "acp-greeting-agent",
+  "name": "Greeting Agent", 
+  "protocol": "acp",
+  "endpoint": "http://greeting-agent:8000",
+  "capabilities": [
+    {"name": "greeting", "description": "Generate greetings in multiple languages"},
+    {"name": "translation", "description": "Translate text between languages"}
+  ],
+  "status": "healthy",
+  "metadata": {
+    "acp_version": "0.1",
+    "auth_required": false,
+    "streaming_supported": true,
+    "discovery_method": "acp_native"
+  }
+}
+```
+
+### 📊 Routing Intelligence
+
+```python
+# Example: AI Routing Decision
+{
+  "request_id": "req_12345",
+  "selected_agent": {
+    "agent_id": "acp-greeting-agent",
+    "protocol": "acp"
+  },
+  "confidence": 0.95,
+  "reasoning": "User request 'say hello' matches greeting capability perfectly. Agent supports multiple languages and has excellent health status.",
+  "alternative_agents": ["a2a-chat-agent"],
+  "estimated_response_time": 2.0
+}
+```
+
+### 🚦 Usage Examples
+
+#### Basic Routing
+```bash
+curl -X POST "http://localhost:8004/route" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Say hello to me in Spanish",
+    "context": {"user_id": "123"}
+  }'
+```
+
+#### Capability Discovery
+```bash
+curl "http://localhost:8004/agents?capability=greeting"
+```
+
+#### Health Status
+```bash
+curl "http://localhost:8004/health"
+```
+
+### 🔧 Development & Testing
+
+```bash
+# Run orchestrator locally
+cd agents/orchestrator
+python -m pip install -r requirements.txt
+PYTHONPATH=src python -m pytest tests/ -v
+
+# Start with Docker
+docker-compose up orchestrator
+
+# View logs
+docker-compose logs -f orchestrator
+```
+
+The orchestrator represents the future of multi-agent systems - providing intelligent, AI-powered routing across heterogeneous agent ecosystems while maintaining the flexibility to experiment with different technologies and approaches.
 
 ## 🤖 Available Agents
 
