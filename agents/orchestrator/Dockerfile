@@ -56,6 +56,9 @@ COPY --chown=orchestrator:orchestrator src/ ./src/
 COPY --chown=orchestrator:orchestrator scripts/ ./scripts/
 COPY --chown=orchestrator:orchestrator pyproject.toml ./
 
+# Copy environment configuration
+COPY --chown=orchestrator:orchestrator .env ./.env
+
 # Set container labels for agent discovery
 LABEL agent.protocol="orchestrator" \
       agent.type="orchestrator" \

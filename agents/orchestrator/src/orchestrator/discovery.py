@@ -1,7 +1,6 @@
 """Unified discovery service that orchestrates protocol-specific strategies"""
 
 import asyncio
-import docker
 import structlog
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
@@ -11,7 +10,8 @@ from .models import (
     AgentRegistryEntry, 
     AgentRegistry, 
     AgentStatus,
-    ProtocolType
+    ProtocolType,
+    AgentCapability
 )
 from .protocols import get_discovery_strategy
 from .config import get_settings
@@ -24,7 +24,6 @@ class UnifiedDiscoveryService:
     
     def __init__(self):
         self.settings = get_settings()
-        self.docker_client = None
         self.agent_registry: AgentRegistry = {}
         self._discovery_task: Optional[asyncio.Task] = None
         self._running = False
@@ -32,17 +31,6 @@ class UnifiedDiscoveryService:
     async def start(self):
         """Start the discovery service"""
         logger.info("Starting unified discovery service")
-        
-        # Initialize Docker client if available
-        if self.settings.docker_available:
-            try:
-                self.docker_client = docker.from_env()
-                logger.info("Docker client initialized successfully")
-            except Exception as e:
-                logger.warning("Failed to initialize Docker client", error=str(e))
-                self.docker_client = None
-        else:
-            logger.warning("Docker socket not available, discovery will be limited")
         
         self._running = True
         
@@ -67,12 +55,6 @@ class UnifiedDiscoveryService:
             except asyncio.CancelledError:
                 pass
         
-        if self.docker_client:
-            try:
-                self.docker_client.close()
-            except Exception as e:
-                logger.debug("Error closing Docker client", error=str(e))
-        
         logger.info("Discovery service stopped")
     
     async def _discovery_loop(self):
@@ -92,16 +74,10 @@ class UnifiedDiscoveryService:
         """Refresh the agent registry by discovering all available agents"""
         logger.debug("Starting agent discovery refresh")
         
-        if not self.docker_client:
-            logger.warning("Docker client not available, skipping discovery")
-            return
-        
         try:
-            # Get all containers in the agent network
-            containers = self._get_agent_containers()
-            
-            # Discover agents from containers
-            discovered_agents = await self._discover_agents_from_containers(containers)
+            # Use HTTP-based agent discovery
+            logger.info("Attempting HTTP-based agent discovery")
+            discovered_agents = await self._discover_agents_http()
             
             # Update registry with health checks
             await self._update_registry(discovered_agents)
@@ -112,105 +88,133 @@ class UnifiedDiscoveryService:
             logger.info(
                 "Discovery refresh complete",
                 agents_found=len(self.agent_registry),
-                healthy_agents=len(await self.get_healthy_agents())
+                healthy_agents=len(await self.get_healthy_agents()),
+                discovery_method="http"
             )
             
         except Exception as e:
             logger.error("Discovery refresh failed", error=str(e))
     
-    def _get_agent_containers(self) -> List:
-        """Get all containers that might be agents"""
-        try:
-            # Get containers from the agent network
-            containers = self.docker_client.containers.list(
-                filters={"network": self.settings.docker_network}
-            )
-            
-            # Filter for containers with agent labels
-            agent_containers = []
-            for container in containers:
-                try:
-                    labels = container.attrs.get("Config", {}).get("Labels", {})
-                    if any(label.startswith("agent.") for label in labels.keys()):
-                        agent_containers.append(container)
-                except Exception as e:
-                    logger.debug(
-                        "Error checking container labels",
-                        container_id=container.id[:12],
-                        error=str(e)
-                    )
-            
-            logger.debug(
-                "Found agent containers",
-                total_containers=len(containers),
-                agent_containers=len(agent_containers)
-            )
-            
-            return agent_containers
-            
-        except Exception as e:
-            logger.error("Failed to get agent containers", error=str(e))
-            return []
-    
-    async def _discover_agents_from_containers(self, containers: List) -> List[DiscoveredAgent]:
-        """Discover agents from a list of containers"""
+    async def _discover_agents_http(self) -> List[DiscoveredAgent]:
+        """HTTP-based agent discovery using known endpoints"""
+        import aiohttp
         discovered_agents = []
         
-        # Process containers concurrently
-        tasks = []
-        for container in containers:
-            task = asyncio.create_task(self._discover_container(container))
-            tasks.append(task)
+        # Known agent endpoints to try
+        known_endpoints = [
+            {"url": "http://acp-hello-world-agent:8000", "protocol": "acp", "name": "hello-world"},
+            {"url": "http://localhost:8000", "protocol": "acp", "name": "hello-world"},  # fallback for host networking
+        ]
         
-        if tasks:
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            for result in results:
-                if isinstance(result, Exception):
-                    logger.debug("Container discovery failed", error=str(result))
-                elif result is not None:
-                    discovered_agents.append(result)
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
+            for endpoint in known_endpoints:
+                try:
+                    logger.debug("Trying HTTP discovery endpoint", url=endpoint['url'])
+                    # Try to get agent info via health endpoint
+                    async with session.get(f"{endpoint['url']}/health") as response:
+                        logger.debug(
+                            "Health endpoint response", 
+                            url=endpoint['url'], 
+                            status=response.status
+                        )
+                        if response.status == 200:
+                            # Construct a discovered agent based on the endpoint
+                            agent = await self._create_agent_from_endpoint(endpoint, session)
+                            if agent:
+                                discovered_agents.append(agent)
+                                logger.info(
+                                    "Discovered agent via HTTP",
+                                    agent_id=agent.agent_id,
+                                    url=endpoint['url'],
+                                    protocol=agent.protocol
+                                )
+                                break  # Don't try localhost if container name worked
+                            else:
+                                logger.warning("Failed to create agent from endpoint", url=endpoint['url'])
+                                
+                except Exception as e:
+                    logger.warning(
+                        "HTTP discovery failed for endpoint",
+                        url=endpoint['url'],
+                        error=str(e),
+                        error_type=type(e).__name__
+                    )
+                    continue
         
         return discovered_agents
     
-    async def _discover_container(self, container) -> Optional[DiscoveredAgent]:
-        """Discover agent from a single container"""
+    async def _create_agent_from_endpoint(self, endpoint: dict, session) -> Optional[DiscoveredAgent]:
+        """Create a DiscoveredAgent from an HTTP endpoint"""
         try:
-            # Get container info
-            container_info = container.attrs
+            logger.debug("Creating agent from endpoint", endpoint=endpoint)
             
-            # Extract protocol from labels
-            labels = container_info.get("Config", {}).get("Labels", {})
-            protocol_str = labels.get("agent.protocol", "").lower()
+            # Try to get more detailed info from agent-specific endpoints
+            capabilities = []
+            metadata = {}
             
-            # Skip non-agent containers and the orchestrator itself
-            if not protocol_str or protocol_str == "orchestrator":
-                return None
+            if endpoint['protocol'] == 'acp':
+                # Try to get ACP descriptor
+                try:
+                    logger.debug("Trying to get ACP descriptor", url=f"{endpoint['url']}/acp-descriptor")
+                    async with session.get(f"{endpoint['url']}/acp-descriptor") as response:
+                        logger.debug("ACP descriptor response", status=response.status)
+                        if response.status == 200:
+                            descriptor = await response.json()
+                            raw_capabilities = descriptor.get('capabilities', [])
+                            metadata = descriptor.get('metadata', {})
+                            
+                            # Convert capability strings to AgentCapability objects
+                            for cap in raw_capabilities:
+                                if isinstance(cap, str):
+                                    capabilities.append(AgentCapability(
+                                        name=cap,
+                                        description=f"Agent capability: {cap}"
+                                    ))
+                                elif isinstance(cap, dict):
+                                    capabilities.append(AgentCapability(**cap))
+                            
+                            logger.debug("Got ACP descriptor", capabilities=len(capabilities), metadata=metadata)
+                except Exception as e:
+                    logger.debug("Failed to get ACP descriptor", error=str(e))
+                    pass  # Use defaults if descriptor not available
             
-            # Get appropriate discovery strategy
-            strategy = get_discovery_strategy(protocol_str)
+            # Create agent with available information
+            agent_data = {
+                "agent_id": f"{endpoint['protocol']}-{endpoint['name']}",
+                "name": endpoint.get('name', f"{endpoint['protocol']}-agent"),
+                "protocol": endpoint['protocol'],
+                "endpoint": endpoint['url'],
+                "capabilities": capabilities or [AgentCapability(name='greeting', description='Agent greeting capability')],  # Default capability
+                "metadata": metadata,
+                "status": "healthy",
+                "last_health_check": datetime.utcnow()
+            }
             
-            # Discover the agent using the strategy
-            agent = await strategy.discover(container_info)
+            logger.debug("Creating DiscoveredAgent with data", data=agent_data)
             
-            if agent:
-                logger.debug(
-                    "Agent discovered",
-                    agent_id=agent.agent_id,
-                    protocol=agent.protocol,
-                    capabilities=len(agent.capabilities)
-                )
+            agent = DiscoveredAgent(
+                agent_id=agent_data["agent_id"],
+                name=agent_data["name"],
+                protocol=ProtocolType(agent_data["protocol"]),
+                endpoint=agent_data["endpoint"],
+                capabilities=agent_data["capabilities"],
+                metadata=agent_data["metadata"],
+                status=AgentStatus.HEALTHY,
+                last_health_check=agent_data["last_health_check"]
+            )
             
+            logger.debug("Successfully created agent", agent_id=agent.agent_id)
             return agent
             
         except Exception as e:
-            container_id = getattr(container, 'id', 'unknown')[:12]
-            logger.debug(
-                "Failed to discover container",
-                container_id=container_id,
-                error=str(e)
+            logger.warning(
+                "Failed to create agent from endpoint",
+                endpoint=endpoint,
+                error=str(e),
+                error_type=type(e).__name__
             )
             return None
+    
     
     async def _update_registry(self, discovered_agents: List[DiscoveredAgent]):
         """Update the agent registry with discovered agents and health checks"""

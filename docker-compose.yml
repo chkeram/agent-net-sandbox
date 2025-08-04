@@ -10,23 +10,7 @@ services:
     container_name: agent-orchestrator
     ports:
       - "8004:8004"
-    environment:
-      - ORCHESTRATOR_HOST=0.0.0.0
-      - ORCHESTRATOR_PORT=8004
-      - ORCHESTRATOR_ENVIRONMENT=production
-      - ORCHESTRATOR_LOG_LEVEL=INFO
-      - ORCHESTRATOR_DEBUG=false
-      # LLM Configuration - set these in .env file or environment
-      - OPENAI_API_KEY
-      - ANTHROPIC_API_KEY
-      - ORCHESTRATOR_LLM_PROVIDER=${ORCHESTRATOR_LLM_PROVIDER:-openai}
-      # Discovery settings
-      - ORCHESTRATOR_DISCOVERY_INTERVAL_SECONDS=30
-      - ORCHESTRATOR_DOCKER_NETWORK=agent-network
-      - ORCHESTRATOR_DOCKER_SOCKET_PATH=/var/run/docker.sock
     volumes:
-      # Mount Docker socket for agent discovery
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       # Mount logs directory
       - orchestrator-logs:/app/logs
       # Mount data directory for persistence

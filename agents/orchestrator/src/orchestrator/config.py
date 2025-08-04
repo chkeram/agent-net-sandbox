@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     """Application settings with environment variable support"""
     
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=["/app/.env", "agents/orchestrator/.env"],
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore"
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     
     # Server configuration
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = 8004
     workers: int = 1
     
     # LLM Provider settings
@@ -48,8 +48,6 @@ class Settings(BaseSettings):
     # Discovery settings
     discovery_interval_seconds: int = 30
     discovery_timeout_seconds: int = 5
-    docker_network: str = "agent-network"
-    docker_socket_path: str = "/var/run/docker.sock"
     
     # Routing settings
     routing_timeout_seconds: float = 30.0
@@ -103,10 +101,6 @@ class Settings(BaseSettings):
         """Check if Anthropic configuration is available"""
         return bool(self.anthropic_api_key) and self.llm_provider == LLMProvider.ANTHROPIC
     
-    @property
-    def docker_available(self) -> bool:
-        """Check if Docker socket is available"""
-        return os.path.exists(self.docker_socket_path)
     
     def get_openai_config(self) -> dict:
         """Get OpenAI client configuration"""

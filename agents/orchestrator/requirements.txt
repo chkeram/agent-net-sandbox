@@ -7,14 +7,13 @@ uvicorn[standard]==0.35.0
 
 # HTTP Client and Server
 httpx[http2]>=0.25.0
+aiohttp>=3.9.0
 websockets>=12.0
 
 # Data Validation and Settings
 pydantic>=2.5.0
 pydantic-settings>=2.0.0
 
-# Docker Integration
-docker>=7.0.0
 
 # Environment and Configuration
 python-dotenv>=1.0.0

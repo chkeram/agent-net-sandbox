@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
         orchestrator_agent = OrchestratorAgent(discovery_service)
         
         # Start background discovery
-        discovery_task = asyncio.create_task(discovery_service.run_periodic_discovery())
+        await discovery_service.start()
         
         logger.info("Orchestrator initialized successfully")
         
@@ -53,14 +53,6 @@ async def lifespan(app: FastAPI):
         raise
     finally:
         logger.info("Shutting down orchestrator")
-        
-        # Cancel discovery task
-        if 'discovery_task' in locals():
-            discovery_task.cancel()
-            try:
-                await discovery_task
-            except asyncio.CancelledError:
-                pass
         
         # Stop discovery service
         if discovery_service:
