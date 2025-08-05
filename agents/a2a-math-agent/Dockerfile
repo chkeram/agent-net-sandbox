@@ -14,11 +14,16 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the agent code
-COPY math_agent.py .
-COPY test_agent.py .
+# Copy the agent code and package files
+COPY src/ ./src/
+COPY scripts/ ./scripts/
+COPY pyproject.toml .
+COPY docker_entrypoint.py .
 
-# Create non-root user
+# Install the package in development mode
+RUN pip install -e .
+
+# Create non-root user (after installs are complete)
 RUN useradd --create-home --user-group appuser
 USER appuser
 
@@ -36,4 +41,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 EXPOSE 8002
 
 # Command to run the agent
-CMD ["python", "math_agent.py"]
+CMD ["python", "docker_entrypoint.py"]

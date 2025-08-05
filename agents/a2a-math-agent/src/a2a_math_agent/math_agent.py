@@ -85,11 +85,11 @@ class MathAgent(AgentExecutor):
         """Cancel the current operation (not applicable for math operations)."""
         pass
     
-    async def execute(self, context: RequestContext) -> None:
+    async def execute(self, request, event_queue) -> None:
         """Execute mathematical operations based on A2A message."""
         try:
-            # Get the message from context
-            message = context.request.message
+            # Get the message from request
+            message = request.message
             
             # Process the message content
             result = await self._process_message(message)
@@ -102,8 +102,8 @@ class MathAgent(AgentExecutor):
                 parts=response_parts
             )
             
-            # Send response
-            await context.send_message(response_message)
+            # Send response via event queue
+            await event_queue.enqueue_event(response_message)
             
         except Exception as e:
             # Send error response
@@ -113,7 +113,7 @@ class MathAgent(AgentExecutor):
                 role="agent",
                 parts=error_parts
             )
-            await context.send_message(error_message)
+            await event_queue.enqueue_event(error_message)
     
     async def _process_message(self, message: Message) -> str:
         """Process incoming message and perform mathematical operations."""
