@@ -187,15 +187,17 @@ class TestMathAgent:
             role="user",
             parts=[TextPart(text="5 + 3")]
         )
-        mock_context.request = mock_request
+        
+        # Mock event queue
+        mock_event_queue = AsyncMock()
         
         agent.llm_service.is_llm_available = Mock(return_value=False)
         
-        await agent.execute(mock_context)
+        await agent.execute(mock_request, mock_event_queue)
         
-        # Verify send_message was called
-        mock_context.send_message.assert_called_once()
-        sent_message = mock_context.send_message.call_args[0][0]
+        # Verify enqueue_event was called
+        mock_event_queue.enqueue_event.assert_called_once()
+        sent_message = mock_event_queue.enqueue_event.call_args[0][0]
         assert isinstance(sent_message, Message)
         assert len(sent_message.parts) == 1
         assert hasattr(sent_message.parts[0], 'root') and isinstance(sent_message.parts[0].root, TextPart)
@@ -205,18 +207,21 @@ class TestMathAgent:
     async def test_execute_error_handling(self, agent, mock_context):
         """Test execute method error handling."""
         # Mock the request to cause an error
-        mock_context.request = Mock()
-        mock_context.request.message = Mock()
-        mock_context.request.message.parts = [Mock()]
-        mock_context.request.message.parts[0].text = "test"
+        mock_request = Mock()
+        mock_request.message = Mock()
+        mock_request.message.parts = [Mock()]
+        mock_request.message.parts[0].text = "test"
         # Make parts iteration fail
-        mock_context.request.message.parts = Mock(side_effect=Exception("Test error"))
+        mock_request.message.parts = Mock(side_effect=Exception("Test error"))
         
-        await agent.execute(mock_context)
+        # Mock event queue
+        mock_event_queue = AsyncMock()
+        
+        await agent.execute(mock_request, mock_event_queue)
         
         # Verify error message was sent
-        mock_context.send_message.assert_called_once()
-        sent_message = mock_context.send_message.call_args[0][0]
+        mock_event_queue.enqueue_event.assert_called_once()
+        sent_message = mock_event_queue.enqueue_event.call_args[0][0]
         assert "Error:" in sent_message.parts[0].root.text
 
 
