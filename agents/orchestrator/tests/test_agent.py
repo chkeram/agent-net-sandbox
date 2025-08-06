@@ -211,7 +211,7 @@ class TestOrchestratorAgent:
         response_data = await orchestrator_agent._execute_on_agent(agent, request)
         
         # Verify response structure
-        assert response_data["message"] == "Response from Test Agent"
+        assert response_data["message"] == "Response from Test Agent (ACP protocol)"
         assert response_data["query"] == "Test query"
         assert response_data["agent_id"] == "test-agent"
         assert response_data["protocol"] == "acp"
