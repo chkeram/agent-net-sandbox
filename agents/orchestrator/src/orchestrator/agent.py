@@ -379,13 +379,6 @@ Return a routing decision with the selected agent, confidence score, and reasoni
     ) -> Dict[str, Any]:
         """Execute request on the selected agent (protocol-specific implementation)"""
         
-        # This is a placeholder implementation
-        # In a real implementation, this would:
-        # 1. Use the appropriate protocol client (ACP, A2A, MCP)
-        # 2. Format the request according to the protocol
-        # 3. Send the request to the agent's endpoint
-        # 4. Parse and return the response
-        
         logger.info(
             "Executing request on agent",
             agent_id=agent.agent_id,
@@ -393,17 +386,91 @@ Return a routing decision with the selected agent, confidence score, and reasoni
             endpoint=agent.endpoint
         )
         
-        # Simulate agent processing
-        await asyncio.sleep(0.1)
-        
-        return {
-            "message": f"Response from {agent.name}",
-            "query": request.query,
-            "agent_id": agent.agent_id,
-            "protocol": agent.protocol.value,
-            "timestamp": datetime.utcnow().isoformat(),
-            "simulated": True  # Indicates this is a placeholder response
-        }
+        # Protocol-specific execution
+        if agent.protocol == ProtocolType.A2A:
+            # Use A2A client for A2A protocol agents
+            from .protocols.a2a_client import A2AProtocolClient
+            
+            logger.debug("Using A2A protocol client")
+            client = A2AProtocolClient(timeout=10.0)  # 10 second timeout for A2A requests
+            
+            # Send the query to the A2A agent
+            response = await client.send_query(agent.endpoint, request.query)
+            
+            # Check if we got an error
+            if "error" in response:
+                logger.error(
+                    "A2A agent returned error",
+                    error=response["error"],
+                    agent_id=agent.agent_id
+                )
+                return {
+                    "message": response.get("text", "Error from A2A agent"),
+                    "query": request.query,
+                    "agent_id": agent.agent_id,
+                    "protocol": agent.protocol.value,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "simulated": False,
+                    "error": response.get("error"),
+                    "success": False
+                }
+            
+            # Successful response
+            return {
+                "message": response.get("text", "No response text"),
+                "query": request.query,
+                "agent_id": agent.agent_id,
+                "protocol": agent.protocol.value,
+                "timestamp": datetime.utcnow().isoformat(),
+                "simulated": False,  # This is a real response!
+                "raw_response": response.get("raw_result", response.get("raw_response")),
+                "success": True
+            }
+            
+        elif agent.protocol == ProtocolType.ACP:
+            # Placeholder for ACP protocol (still simulated for now)
+            logger.debug("Using simulated ACP response (ACP client not yet implemented)")
+            await asyncio.sleep(0.1)
+            
+            return {
+                "message": f"Response from {agent.name} (ACP protocol)",
+                "query": request.query,
+                "agent_id": agent.agent_id,
+                "protocol": agent.protocol.value,
+                "timestamp": datetime.utcnow().isoformat(),
+                "simulated": True  # Still simulated for ACP
+            }
+            
+        elif agent.protocol == ProtocolType.MCP:
+            # Placeholder for MCP protocol (still simulated for now)
+            logger.debug("Using simulated MCP response (MCP client not yet implemented)")
+            await asyncio.sleep(0.1)
+            
+            return {
+                "message": f"Response from {agent.name} (MCP protocol)",
+                "query": request.query,
+                "agent_id": agent.agent_id,
+                "protocol": agent.protocol.value,
+                "timestamp": datetime.utcnow().isoformat(),
+                "simulated": True  # Still simulated for MCP
+            }
+            
+        else:
+            # Unknown protocol - fallback to simulation
+            logger.warning(
+                "Unknown protocol, using simulated response",
+                protocol=agent.protocol.value
+            )
+            await asyncio.sleep(0.1)
+            
+            return {
+                "message": f"Response from {agent.name}",
+                "query": request.query,
+                "agent_id": agent.agent_id,
+                "protocol": agent.protocol.value,
+                "timestamp": datetime.utcnow().isoformat(),
+                "simulated": True
+            }
     
     def get_metrics(self) -> OrchestrationMetrics:
         """Get current orchestration metrics"""
