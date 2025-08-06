@@ -140,7 +140,7 @@ Be concise but thorough in your analysis. Focus on making the best routing decis
             agents = await ctx.deps.discovery_service.get_healthy_agents()
             ctx.deps.available_agents = agents
             
-            return [
+            result = [
                 {
                     "agent_id": agent.agent_id,
                     "name": agent.name,
@@ -159,6 +159,16 @@ Be concise but thorough in your analysis. Focus on making the best routing decis
                 }
                 for agent in agents
             ]
+            
+            logger.info(
+                "LLM_TOOL_CALL: get_available_agents",
+                tool_name="get_available_agents",
+                agents_count=len(agents),
+                agent_endpoints=[agent.endpoint for agent in agents],
+                full_response=result
+            )
+            
+            return result
         
         @self.agent.tool
         async def get_agents_by_capability(
@@ -168,7 +178,7 @@ Be concise but thorough in your analysis. Focus on making the best routing decis
             """Get agents that have a specific capability"""
             agents = await ctx.deps.discovery_service.get_agents_by_capability(capability)
             
-            return [
+            result = [
                 {
                     "agent_id": agent.agent_id,
                     "name": agent.name,
@@ -187,6 +197,17 @@ Be concise but thorough in your analysis. Focus on making the best routing decis
                 }
                 for agent in agents
             ]
+            
+            logger.info(
+                "LLM_TOOL_CALL: get_agents_by_capability",
+                tool_name="get_agents_by_capability",
+                capability_requested=capability,
+                agents_count=len(agents),
+                agent_endpoints=[agent.endpoint for agent in agents],
+                full_response=result
+            )
+            
+            return result
         
         @self.agent.tool
         async def get_agents_by_protocol(
@@ -198,7 +219,7 @@ Be concise but thorough in your analysis. Focus on making the best routing decis
                 protocol_type = ProtocolType(protocol.lower())
                 agents = await ctx.deps.discovery_service.get_agents_by_protocol(protocol_type)
                 
-                return [
+                result = [
                     {
                         "agent_id": agent.agent_id,
                         "name": agent.name,
@@ -217,7 +238,26 @@ Be concise but thorough in your analysis. Focus on making the best routing decis
                     }
                     for agent in agents
                 ]
+                
+                logger.info(
+                    "LLM_TOOL_CALL: get_agents_by_protocol",
+                    tool_name="get_agents_by_protocol",
+                    protocol_requested=protocol,
+                    agents_count=len(agents),
+                    agent_endpoints=[agent.endpoint for agent in agents],
+                    full_response=result
+                )
+                
+                return result
             except ValueError:
+                logger.info(
+                    "LLM_TOOL_CALL: get_agents_by_protocol",
+                    tool_name="get_agents_by_protocol",
+                    protocol_requested=protocol,
+                    error="Invalid protocol type",
+                    agents_count=0,
+                    full_response=[]
+                )
                 return []
     
     async def route_request(self, request: RoutingRequest) -> RoutingDecision:
@@ -248,11 +288,32 @@ Use the available tools to get information about agents and their capabilities.
 Return a routing decision with the selected agent, confidence score, and reasoning.
             """.strip()
             
+            logger.info(
+                "LLM_REQUEST_START",
+                request_id=request.request_id,
+                query=request.query,
+                preferred_protocol=request.preferred_protocol,
+                preferred_agent=request.preferred_agent,
+                llm_query=query
+            )
+            
             # Run the AI agent
             result = await self.agent.run(query, deps=context)
             
             # Extract the routing decision
             routing_decision = result.data
+            
+            # Log the LLM's decision in detail
+            logger.info(
+                "LLM_DECISION_RECEIVED",
+                request_id=request.request_id,
+                selected_agent_id=routing_decision.selected_agent.agent_id if routing_decision.selected_agent else None,
+                selected_agent_name=routing_decision.selected_agent.name if routing_decision.selected_agent else None,
+                selected_agent_endpoint=routing_decision.selected_agent.endpoint if routing_decision.selected_agent else None,
+                confidence=routing_decision.confidence,
+                reasoning=routing_decision.reasoning,
+                full_selected_agent=routing_decision.selected_agent.model_dump() if routing_decision.selected_agent else None
+            )
             
             # Update metrics
             duration_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
