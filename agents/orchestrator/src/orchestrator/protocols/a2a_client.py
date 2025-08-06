@@ -62,7 +62,7 @@ class A2AProtocolClient:
                             "role": "user",
                             "parts": [
                                 {
-                                    "type": "text",
+                                    "kind": "text",
                                     "text": query
                                 }
                             ],
@@ -81,7 +81,7 @@ class A2AProtocolClient:
                 
                 # Send the message to the A2A agent
                 response = await client.post(
-                    f"{endpoint}/rpc",  # A2A agents typically use /rpc endpoint for JSON-RPC
+                    f"{endpoint}/",  # A2A agents use root endpoint for JSON-RPC
                     json=message_payload,
                     headers={
                         "Content-Type": "application/json",
@@ -219,7 +219,7 @@ class A2AProtocolClient:
         text_parts = []
         
         for part in parts:
-            if isinstance(part, dict) and part.get("type") == "text":
+            if isinstance(part, dict) and part.get("kind") == "text":
                 text_parts.append(part.get("text", ""))
         
         return " ".join(text_parts) if text_parts else "No text content in message"

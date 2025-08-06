@@ -173,8 +173,17 @@ Be concise but thorough in your analysis. Focus on making the best routing decis
                     "agent_id": agent.agent_id,
                     "name": agent.name,
                     "protocol": agent.protocol.value,
-                    "capabilities": [cap.name for cap in agent.capabilities],
-                    "status": agent.status.value
+                    "capabilities": [
+                        {
+                            "name": cap.name,
+                            "description": cap.description,
+                            "tags": cap.tags
+                        }
+                        for cap in agent.capabilities
+                    ],
+                    "status": agent.status.value,
+                    "endpoint": agent.endpoint,
+                    "metadata": agent.metadata
                 }
                 for agent in agents
             ]
@@ -193,8 +202,18 @@ Be concise but thorough in your analysis. Focus on making the best routing decis
                     {
                         "agent_id": agent.agent_id,
                         "name": agent.name,
-                        "capabilities": [cap.name for cap in agent.capabilities],
-                        "status": agent.status.value
+                        "protocol": agent.protocol.value,
+                        "capabilities": [
+                            {
+                                "name": cap.name,
+                                "description": cap.description,
+                                "tags": cap.tags
+                            }
+                            for cap in agent.capabilities
+                        ],
+                        "status": agent.status.value,
+                        "endpoint": agent.endpoint,
+                        "metadata": agent.metadata
                     }
                     for agent in agents
                 ]
