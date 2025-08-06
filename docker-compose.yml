@@ -84,6 +84,42 @@ services:
       - "service.type=directory"
       - "service.description=Mock agent directory for development"
 
+  # A2A Math Operations Agent
+  a2a-math-agent:
+    build:
+      context: ./agents/a2a-math-agent
+      dockerfile: Dockerfile
+    image: a2a-math-agent:latest
+    container_name: a2a-math-agent
+    ports:
+      - "8002:8002"
+    environment:
+      - A2A_PORT=8002
+      - HOST=0.0.0.0
+      - PYTHONPATH=/app
+      # LLM Configuration (optional - uncomment and set to enable)
+      # - LLM_PROVIDER=openai
+      # - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # - GEMINI_API_KEY=${GEMINI_API_KEY}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/.well-known/agent-card"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - agent-network
+    labels:
+      - "agent.protocol=a2a"
+      - "agent.type=math"
+      - "agent.name=A2A Math Operations Agent"
+      - "agent.version=0.1.0"
+      - "agent.port=8002"
+      - "agent.capabilities=arithmetic,advanced-math,algebra"
+      - "service.description=Mathematical computation agent using A2A Protocol SDK"
+
   # Future agents will be added here...
   # Example structure for other protocols:
   # 
@@ -97,17 +133,6 @@ services:
   #     - agent-network
   #   labels:
   #     - "agent.protocol=mcp"
-  #
-  # a2a-example-agent:
-  #   build:
-  #     context: ./agents/a2a-example
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "8002:8000"
-  #   networks:
-  #     - agent-network
-  #   labels:
-  #     - "agent.protocol=a2a"
 
 networks:
   agent-network:
