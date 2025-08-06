@@ -98,8 +98,19 @@ class DiscoveredAgent(BaseModel):
         return [cap.name for cap in self.capabilities]
     
     def has_capability(self, capability_name: str) -> bool:
-        """Check if agent has a specific capability"""
-        return capability_name.lower() in self.get_capability_names()
+        """Check if agent has a specific capability by name or tag"""
+        capability_name = capability_name.lower()
+        
+        # Check exact capability name matches first
+        if capability_name in self.get_capability_names():
+            return True
+            
+        # Also check capability tags for more flexible matching
+        for cap in self.capabilities:
+            if capability_name in [tag.lower() for tag in cap.tags]:
+                return True
+                
+        return False
     
     def is_healthy(self) -> bool:
         """Check if agent is in healthy state"""

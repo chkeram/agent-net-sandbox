@@ -172,15 +172,21 @@ class UnifiedDiscoveryService:
             metadata = {}
             
             if endpoint['protocol'] == 'acp':
-                # Try to get ACP descriptor
+                # Try to get ACP capabilities
                 try:
-                    logger.debug("Trying to get ACP descriptor", url=f"{endpoint['url']}/acp-descriptor")
-                    async with session.get(f"{endpoint['url']}/acp-descriptor") as response:
-                        logger.debug("ACP descriptor response", status=response.status)
+                    logger.debug("Trying to get ACP capabilities", url=f"{endpoint['url']}/capabilities")
+                    async with session.get(f"{endpoint['url']}/capabilities") as response:
+                        logger.debug("ACP capabilities response", status=response.status)
                         if response.status == 200:
-                            descriptor = await response.json()
-                            raw_capabilities = descriptor.get('capabilities', [])
-                            metadata = descriptor.get('metadata', {})
+                            capabilities_data = await response.json()
+                            raw_capabilities = capabilities_data.get('capabilities', [])
+                            metadata = {
+                                'agent_id': capabilities_data.get('agent_id'),
+                                'agent_name': capabilities_data.get('agent_name'),
+                                'version': capabilities_data.get('version'),
+                                'description': capabilities_data.get('description'),
+                                'supported_languages': capabilities_data.get('supported_languages', [])
+                            }
                             
                             # Convert capability strings to AgentCapability objects
                             for cap in raw_capabilities:
@@ -192,9 +198,9 @@ class UnifiedDiscoveryService:
                                 elif isinstance(cap, dict):
                                     capabilities.append(AgentCapability(**cap))
                             
-                            logger.debug("Got ACP descriptor", capabilities=len(capabilities), metadata=metadata)
+                            logger.debug("Got ACP capabilities", capabilities=len(capabilities), metadata=metadata)
                 except Exception as e:
-                    logger.debug("Failed to get ACP descriptor", error=str(e))
+                    logger.debug("Failed to get ACP capabilities", error=str(e))
                     pass  # Use defaults if descriptor not available
                     
             elif endpoint['protocol'] == 'a2a':
@@ -217,7 +223,8 @@ class UnifiedDiscoveryService:
                             for skill in skills:
                                 capabilities.append(AgentCapability(
                                     name=skill.get('name', skill.get('id', 'unknown')),
-                                    description=skill.get('description', f"A2A skill: {skill.get('name', 'unknown')}")
+                                    description=skill.get('description', f"A2A skill: {skill.get('name', 'unknown')}"),
+                                    tags=skill.get('tags', [])  # Include tags from A2A skills
                                 ))
                                 
                             logger.debug("Got A2A agent card", capabilities=len(capabilities), metadata=metadata)
