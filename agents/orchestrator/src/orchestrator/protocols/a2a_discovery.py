@@ -65,42 +65,56 @@ class A2ADiscoveryStrategy(DiscoveryStrategy):
             return self._fallback_discovery(base_info, endpoint)
     
     async def health_check(self, agent: DiscoveredAgent) -> AgentStatus:
-        """Check A2A agent health using protocol-specific ping"""
+        """Check A2A agent health using agent card endpoint"""
         try:
             async with httpx.AsyncClient(timeout=3.0) as client:
-                # A2A might use a different health check mechanism
-                # Try A2A-style ping first
-                ping_payload = {
-                    "from": "orchestrator",
-                    "type": "health_check",
-                    "timestamp": "2024-01-01T00:00:00Z"  # Would use actual timestamp
-                }
-                
+                # For A2A SDK v0.3.0, use the agent card endpoint as health check
                 try:
-                    response = await client.post(
-                        f"{agent.endpoint}/ping",
-                        json=ping_payload
-                    )
+                    response = await client.get(f"{agent.endpoint}/.well-known/agent-card.json")
                     
                     if response.status_code == 200:
+                        # If we can successfully get the agent card, agent is healthy
                         data = response.json()
-                        status = data.get("status", "").lower()
-                        
-                        # Map A2A status responses
-                        if status in ["alive", "active", "ready"]:
+                        # Verify it's a valid agent card
+                        if data.get("name") and data.get("protocolVersion"):
                             return AgentStatus.HEALTHY
-                        elif status in ["busy", "degraded"]:
-                            return AgentStatus.DEGRADED
-                        elif status in ["dead", "inactive", "error"]:
-                            return AgentStatus.UNHEALTHY
                         else:
-                            return AgentStatus.HEALTHY if status else AgentStatus.UNKNOWN
-                            
+                            return AgentStatus.DEGRADED
                 except httpx.RequestError:
-                    # Fallback to standard health endpoint
-                    response = await client.get(f"{agent.endpoint}/health")
-                    if response.status_code == 200:
-                        return AgentStatus.HEALTHY
+                    # Fallback to trying legacy ping endpoint
+                    try:
+                        ping_payload = {
+                            "from": "orchestrator",
+                            "type": "health_check",
+                            "timestamp": "2024-01-01T00:00:00Z"
+                        }
+                        
+                        response = await client.post(
+                            f"{agent.endpoint}/ping", 
+                            json=ping_payload
+                        )
+                        
+                        if response.status_code == 200:
+                            data = response.json()
+                            status = data.get("status", "").lower()
+                            
+                            # Map A2A status responses
+                            if status in ["alive", "active", "ready"]:
+                                return AgentStatus.HEALTHY
+                            elif status in ["busy", "degraded"]:
+                                return AgentStatus.DEGRADED
+                            elif status in ["dead", "inactive", "error"]:
+                                return AgentStatus.UNHEALTHY
+                            else:
+                                return AgentStatus.HEALTHY if status else AgentStatus.UNKNOWN
+                    except httpx.RequestError:
+                        # Final fallback to standard health endpoint
+                        try:
+                            response = await client.get(f"{agent.endpoint}/health")
+                            if response.status_code == 200:
+                                return AgentStatus.HEALTHY
+                        except httpx.RequestError:
+                            pass
             
             return AgentStatus.UNHEALTHY
             

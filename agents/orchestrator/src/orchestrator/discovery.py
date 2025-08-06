@@ -104,17 +104,35 @@ class UnifiedDiscoveryService:
         known_endpoints = [
             {"url": "http://acp-hello-world-agent:8000", "protocol": "acp", "name": "hello-world"},
             {"url": "http://localhost:8000", "protocol": "acp", "name": "hello-world"},  # fallback for host networking
+            {"url": "http://a2a-math-agent:8002", "protocol": "a2a", "name": "math"},
+            {"url": "http://localhost:8002", "protocol": "a2a", "name": "math"},  # fallback for host networking
         ]
         
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
+            # Group endpoints by agent to handle localhost fallback properly
+            agents_tried = set()
+            
             for endpoint in known_endpoints:
+                agent_key = f"{endpoint['protocol']}-{endpoint['name']}"
+                
+                # Skip if we already successfully discovered this agent
+                if agent_key in agents_tried:
+                    continue
+                    
                 try:
                     logger.debug("Trying HTTP discovery endpoint", url=endpoint['url'])
+                    
+                    # Use appropriate health check endpoint based on protocol
+                    health_url = f"{endpoint['url']}/health"
+                    if endpoint['protocol'] == 'a2a':
+                        health_url = f"{endpoint['url']}/.well-known/agent-card.json"
+                    
                     # Try to get agent info via health endpoint
-                    async with session.get(f"{endpoint['url']}/health") as response:
+                    async with session.get(health_url) as response:
                         logger.debug(
                             "Health endpoint response", 
                             url=endpoint['url'], 
+                            health_url=health_url,
                             status=response.status
                         )
                         if response.status == 200:
@@ -122,13 +140,14 @@ class UnifiedDiscoveryService:
                             agent = await self._create_agent_from_endpoint(endpoint, session)
                             if agent:
                                 discovered_agents.append(agent)
+                                agents_tried.add(agent_key)
                                 logger.info(
                                     "Discovered agent via HTTP",
                                     agent_id=agent.agent_id,
                                     url=endpoint['url'],
                                     protocol=agent.protocol
                                 )
-                                break  # Don't try localhost if container name worked
+                                # Continue to next agent, don't break entire loop
                             else:
                                 logger.warning("Failed to create agent from endpoint", url=endpoint['url'])
                                 
@@ -153,15 +172,21 @@ class UnifiedDiscoveryService:
             metadata = {}
             
             if endpoint['protocol'] == 'acp':
-                # Try to get ACP descriptor
+                # Try to get ACP capabilities
                 try:
-                    logger.debug("Trying to get ACP descriptor", url=f"{endpoint['url']}/acp-descriptor")
-                    async with session.get(f"{endpoint['url']}/acp-descriptor") as response:
-                        logger.debug("ACP descriptor response", status=response.status)
+                    logger.debug("Trying to get ACP capabilities", url=f"{endpoint['url']}/capabilities")
+                    async with session.get(f"{endpoint['url']}/capabilities") as response:
+                        logger.debug("ACP capabilities response", status=response.status)
                         if response.status == 200:
-                            descriptor = await response.json()
-                            raw_capabilities = descriptor.get('capabilities', [])
-                            metadata = descriptor.get('metadata', {})
+                            capabilities_data = await response.json()
+                            raw_capabilities = capabilities_data.get('capabilities', [])
+                            metadata = {
+                                'agent_id': capabilities_data.get('agent_id'),
+                                'agent_name': capabilities_data.get('agent_name'),
+                                'version': capabilities_data.get('version'),
+                                'description': capabilities_data.get('description'),
+                                'supported_languages': capabilities_data.get('supported_languages', [])
+                            }
                             
                             # Convert capability strings to AgentCapability objects
                             for cap in raw_capabilities:
@@ -173,18 +198,52 @@ class UnifiedDiscoveryService:
                                 elif isinstance(cap, dict):
                                     capabilities.append(AgentCapability(**cap))
                             
-                            logger.debug("Got ACP descriptor", capabilities=len(capabilities), metadata=metadata)
+                            logger.debug("Got ACP capabilities", capabilities=len(capabilities), metadata=metadata)
                 except Exception as e:
-                    logger.debug("Failed to get ACP descriptor", error=str(e))
+                    logger.debug("Failed to get ACP capabilities", error=str(e))
                     pass  # Use defaults if descriptor not available
+                    
+            elif endpoint['protocol'] == 'a2a':
+                # Try to get A2A agent card
+                try:
+                    logger.debug("Trying to get A2A agent card", url=f"{endpoint['url']}/.well-known/agent-card.json")
+                    async with session.get(f"{endpoint['url']}/.well-known/agent-card.json") as response:
+                        logger.debug("A2A agent card response", status=response.status)
+                        if response.status == 200:
+                            agent_card = await response.json()
+                            metadata = {
+                                'version': agent_card.get('version'),
+                                'protocolVersion': agent_card.get('protocolVersion'),
+                                'description': agent_card.get('description'),
+                                'preferredTransport': agent_card.get('preferredTransport')
+                            }
+                            
+                            # Convert skills to capabilities
+                            skills = agent_card.get('skills', [])
+                            for skill in skills:
+                                capabilities.append(AgentCapability(
+                                    name=skill.get('name', skill.get('id', 'unknown')),
+                                    description=skill.get('description', f"A2A skill: {skill.get('name', 'unknown')}"),
+                                    tags=skill.get('tags', [])  # Include tags from A2A skills
+                                ))
+                                
+                            logger.debug("Got A2A agent card", capabilities=len(capabilities), metadata=metadata)
+                except Exception as e:
+                    logger.debug("Failed to get A2A agent card", error=str(e))
+                    pass  # Use defaults if agent card not available
             
             # Create agent with available information
+            default_capability = AgentCapability(
+                name='greeting' if endpoint['protocol'] == 'acp' else 'arithmetic',
+                description='Agent greeting capability' if endpoint['protocol'] == 'acp' else 'Mathematical computation capability'
+            )
+            
             agent_data = {
                 "agent_id": f"{endpoint['protocol']}-{endpoint['name']}",
                 "name": endpoint.get('name', f"{endpoint['protocol']}-agent"),
                 "protocol": endpoint['protocol'],
                 "endpoint": endpoint['url'],
-                "capabilities": capabilities or [AgentCapability(name='greeting', description='Agent greeting capability')],  # Default capability
+                "capabilities": capabilities or [default_capability],
                 "metadata": metadata,
                 "status": "healthy",
                 "last_health_check": datetime.utcnow()

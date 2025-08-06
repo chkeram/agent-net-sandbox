@@ -140,7 +140,7 @@ Be concise but thorough in your analysis. Focus on making the best routing decis
             agents = await ctx.deps.discovery_service.get_healthy_agents()
             ctx.deps.available_agents = agents
             
-            return [
+            result = [
                 {
                     "agent_id": agent.agent_id,
                     "name": agent.name,
@@ -159,6 +159,16 @@ Be concise but thorough in your analysis. Focus on making the best routing decis
                 }
                 for agent in agents
             ]
+            
+            logger.info(
+                "LLM_TOOL_CALL: get_available_agents",
+                tool_name="get_available_agents",
+                agents_count=len(agents),
+                agent_endpoints=[agent.endpoint for agent in agents],
+                full_response=result
+            )
+            
+            return result
         
         @self.agent.tool
         async def get_agents_by_capability(
@@ -168,16 +178,36 @@ Be concise but thorough in your analysis. Focus on making the best routing decis
             """Get agents that have a specific capability"""
             agents = await ctx.deps.discovery_service.get_agents_by_capability(capability)
             
-            return [
+            result = [
                 {
                     "agent_id": agent.agent_id,
                     "name": agent.name,
                     "protocol": agent.protocol.value,
-                    "capabilities": [cap.name for cap in agent.capabilities],
-                    "status": agent.status.value
+                    "capabilities": [
+                        {
+                            "name": cap.name,
+                            "description": cap.description,
+                            "tags": cap.tags
+                        }
+                        for cap in agent.capabilities
+                    ],
+                    "status": agent.status.value,
+                    "endpoint": agent.endpoint,
+                    "metadata": agent.metadata
                 }
                 for agent in agents
             ]
+            
+            logger.info(
+                "LLM_TOOL_CALL: get_agents_by_capability",
+                tool_name="get_agents_by_capability",
+                capability_requested=capability,
+                agents_count=len(agents),
+                agent_endpoints=[agent.endpoint for agent in agents],
+                full_response=result
+            )
+            
+            return result
         
         @self.agent.tool
         async def get_agents_by_protocol(
@@ -189,16 +219,45 @@ Be concise but thorough in your analysis. Focus on making the best routing decis
                 protocol_type = ProtocolType(protocol.lower())
                 agents = await ctx.deps.discovery_service.get_agents_by_protocol(protocol_type)
                 
-                return [
+                result = [
                     {
                         "agent_id": agent.agent_id,
                         "name": agent.name,
-                        "capabilities": [cap.name for cap in agent.capabilities],
-                        "status": agent.status.value
+                        "protocol": agent.protocol.value,
+                        "capabilities": [
+                            {
+                                "name": cap.name,
+                                "description": cap.description,
+                                "tags": cap.tags
+                            }
+                            for cap in agent.capabilities
+                        ],
+                        "status": agent.status.value,
+                        "endpoint": agent.endpoint,
+                        "metadata": agent.metadata
                     }
                     for agent in agents
                 ]
+                
+                logger.info(
+                    "LLM_TOOL_CALL: get_agents_by_protocol",
+                    tool_name="get_agents_by_protocol",
+                    protocol_requested=protocol,
+                    agents_count=len(agents),
+                    agent_endpoints=[agent.endpoint for agent in agents],
+                    full_response=result
+                )
+                
+                return result
             except ValueError:
+                logger.info(
+                    "LLM_TOOL_CALL: get_agents_by_protocol",
+                    tool_name="get_agents_by_protocol",
+                    protocol_requested=protocol,
+                    error="Invalid protocol type",
+                    agents_count=0,
+                    full_response=[]
+                )
                 return []
     
     async def route_request(self, request: RoutingRequest) -> RoutingDecision:
@@ -229,11 +288,32 @@ Use the available tools to get information about agents and their capabilities.
 Return a routing decision with the selected agent, confidence score, and reasoning.
             """.strip()
             
+            logger.info(
+                "LLM_REQUEST_START",
+                request_id=request.request_id,
+                query=request.query,
+                preferred_protocol=request.preferred_protocol,
+                preferred_agent=request.preferred_agent,
+                llm_query=query
+            )
+            
             # Run the AI agent
             result = await self.agent.run(query, deps=context)
             
             # Extract the routing decision
             routing_decision = result.data
+            
+            # Log the LLM's decision in detail
+            logger.info(
+                "LLM_DECISION_RECEIVED",
+                request_id=request.request_id,
+                selected_agent_id=routing_decision.selected_agent.agent_id if routing_decision.selected_agent else None,
+                selected_agent_name=routing_decision.selected_agent.name if routing_decision.selected_agent else None,
+                selected_agent_endpoint=routing_decision.selected_agent.endpoint if routing_decision.selected_agent else None,
+                confidence=routing_decision.confidence,
+                reasoning=routing_decision.reasoning,
+                full_selected_agent=routing_decision.selected_agent.model_dump() if routing_decision.selected_agent else None
+            )
             
             # Update metrics
             duration_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
@@ -379,13 +459,6 @@ Return a routing decision with the selected agent, confidence score, and reasoni
     ) -> Dict[str, Any]:
         """Execute request on the selected agent (protocol-specific implementation)"""
         
-        # This is a placeholder implementation
-        # In a real implementation, this would:
-        # 1. Use the appropriate protocol client (ACP, A2A, MCP)
-        # 2. Format the request according to the protocol
-        # 3. Send the request to the agent's endpoint
-        # 4. Parse and return the response
-        
         logger.info(
             "Executing request on agent",
             agent_id=agent.agent_id,
@@ -393,17 +466,91 @@ Return a routing decision with the selected agent, confidence score, and reasoni
             endpoint=agent.endpoint
         )
         
-        # Simulate agent processing
-        await asyncio.sleep(0.1)
-        
-        return {
-            "message": f"Response from {agent.name}",
-            "query": request.query,
-            "agent_id": agent.agent_id,
-            "protocol": agent.protocol.value,
-            "timestamp": datetime.utcnow().isoformat(),
-            "simulated": True  # Indicates this is a placeholder response
-        }
+        # Protocol-specific execution
+        if agent.protocol == ProtocolType.A2A:
+            # Use A2A client for A2A protocol agents
+            from .protocols.a2a_client import A2AProtocolClient
+            
+            logger.debug("Using A2A protocol client")
+            client = A2AProtocolClient(timeout=10.0)  # 10 second timeout for A2A requests
+            
+            # Send the query to the A2A agent
+            response = await client.send_query(agent.endpoint, request.query)
+            
+            # Check if we got an error
+            if "error" in response:
+                logger.error(
+                    "A2A agent returned error",
+                    error=response["error"],
+                    agent_id=agent.agent_id
+                )
+                return {
+                    "message": response.get("text", "Error from A2A agent"),
+                    "query": request.query,
+                    "agent_id": agent.agent_id,
+                    "protocol": agent.protocol.value,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "simulated": False,
+                    "error": response.get("error"),
+                    "success": False
+                }
+            
+            # Successful response
+            return {
+                "message": response.get("text", "No response text"),
+                "query": request.query,
+                "agent_id": agent.agent_id,
+                "protocol": agent.protocol.value,
+                "timestamp": datetime.utcnow().isoformat(),
+                "simulated": False,  # This is a real response!
+                "raw_response": response.get("raw_result", response.get("raw_response")),
+                "success": True
+            }
+            
+        elif agent.protocol == ProtocolType.ACP:
+            # Placeholder for ACP protocol (still simulated for now)
+            logger.debug("Using simulated ACP response (ACP client not yet implemented)")
+            await asyncio.sleep(0.1)
+            
+            return {
+                "message": f"Response from {agent.name} (ACP protocol)",
+                "query": request.query,
+                "agent_id": agent.agent_id,
+                "protocol": agent.protocol.value,
+                "timestamp": datetime.utcnow().isoformat(),
+                "simulated": True  # Still simulated for ACP
+            }
+            
+        elif agent.protocol == ProtocolType.MCP:
+            # Placeholder for MCP protocol (still simulated for now)
+            logger.debug("Using simulated MCP response (MCP client not yet implemented)")
+            await asyncio.sleep(0.1)
+            
+            return {
+                "message": f"Response from {agent.name} (MCP protocol)",
+                "query": request.query,
+                "agent_id": agent.agent_id,
+                "protocol": agent.protocol.value,
+                "timestamp": datetime.utcnow().isoformat(),
+                "simulated": True  # Still simulated for MCP
+            }
+            
+        else:
+            # Unknown protocol - fallback to simulation
+            logger.warning(
+                "Unknown protocol, using simulated response",
+                protocol=agent.protocol.value
+            )
+            await asyncio.sleep(0.1)
+            
+            return {
+                "message": f"Response from {agent.name}",
+                "query": request.query,
+                "agent_id": agent.agent_id,
+                "protocol": agent.protocol.value,
+                "timestamp": datetime.utcnow().isoformat(),
+                "simulated": True
+            }
     
     def get_metrics(self) -> OrchestrationMetrics:
         """Get current orchestration metrics"""
