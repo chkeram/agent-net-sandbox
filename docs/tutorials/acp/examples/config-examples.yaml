@@ -1,0 +1,555 @@
+# ACP Agent Configuration Examples
+# These examples show different configuration patterns for ACP agents
+
+# Example 1: Basic Agent Manifest
+basic_manifest:
+  apiVersion: agntcy.org/v1
+  kind: AgentManifest
+  metadata:
+    name: my-agent
+    version: "1.0.0"
+    description: "A basic ACP agent"
+    author: "Developer Name"
+    license: "Apache-2.0"
+    tags:
+      - utility
+      - demo
+      - acp
+  
+  spec:
+    agent:
+      id: my-agent
+      name: "My Agent"
+      description: "Does useful things"
+      version: "1.0.0"
+    
+    capabilities:
+      - name: primary_function
+        description: "Main agent functionality"
+        inputSchema:
+          type: object
+          properties:
+            input_field:
+              type: string
+              description: "Input parameter"
+          required:
+            - input_field
+        outputSchema:
+          type: object
+          properties:
+            result:
+              type: string
+              description: "Processing result"
+          required:
+            - result
+    
+    endpoints:
+      base_url: "http://localhost:8000"
+      protocol: acp
+      version: v0
+
+---
+
+# Example 2: Multi-Language Agent
+multilingual_agent:
+  apiVersion: agntcy.org/v1
+  kind: AgentManifest
+  metadata:
+    name: translator-agent
+    version: "2.1.0"
+    description: "Multi-language translation agent"
+    tags:
+      - translation
+      - multilingual
+      - nlp
+      - acp
+  
+  spec:
+    capabilities:
+      - name: translate_text
+        description: "Translate text between languages"
+        inputSchema:
+          type: object
+          properties:
+            text:
+              type: string
+              description: "Text to translate"
+            source_language:
+              type: string
+              description: "Source language code"
+              default: "auto"
+            target_language:
+              type: string
+              description: "Target language code"
+              enum: ["en", "es", "fr", "de", "it", "pt", "ru", "ja", "ko", "zh"]
+          required:
+            - text
+            - target_language
+        outputSchema:
+          type: object
+          properties:
+            translated_text:
+              type: string
+            source_language_detected:
+              type: string
+            confidence:
+              type: number
+              minimum: 0
+              maximum: 1
+    
+    configuration:
+      schema:
+        type: object
+        properties:
+          default_target_language:
+            type: string
+            enum: ["en", "es", "fr", "de", "it"]
+            default: "en"
+          quality_level:
+            type: string
+            enum: ["fast", "balanced", "high_quality"]
+            default: "balanced"
+          max_text_length:
+            type: integer
+            minimum: 1
+            maximum: 10000
+            default: 5000
+    
+    discovery:
+      enabled: true
+      keywords:
+        - translation
+        - multilingual
+        - language
+        - nlp
+      categories:
+        - language-processing
+        - utility
+
+---
+
+# Example 3: Data Processing Agent
+data_processor:
+  apiVersion: agntcy.org/v1
+  kind: AgentManifest
+  metadata:
+    name: data-processor
+    version: "1.5.2"
+    description: "Agent for data transformation and analysis"
+    tags:
+      - data
+      - processing
+      - analytics
+      - acp
+  
+  spec:
+    capabilities:
+      - name: process_csv
+        description: "Process CSV data with transformations"
+        inputSchema:
+          type: object
+          properties:
+            data:
+              type: string
+              description: "CSV data as string"
+            operations:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum: ["filter", "transform", "aggregate", "sort"]
+                  column:
+                    type: string
+                  condition:
+                    type: string
+                  value:
+                    oneOf:
+                      - type: string
+                      - type: number
+                      - type: boolean
+          required:
+            - data
+        outputSchema:
+          type: object
+          properties:
+            processed_data:
+              type: string
+              description: "Processed CSV data"
+            statistics:
+              type: object
+              properties:
+                rows_processed:
+                  type: integer
+                columns:
+                  type: array
+                  items:
+                    type: string
+                operations_applied:
+                  type: integer
+    
+    configuration:
+      schema:
+        type: object
+        properties:
+          max_rows:
+            type: integer
+            minimum: 1
+            maximum: 1000000
+            default: 10000
+          output_format:
+            type: string
+            enum: ["csv", "json", "xlsx"]
+            default: "csv"
+          include_statistics:
+            type: boolean
+            default: true
+          precision:
+            type: integer
+            minimum: 0
+            maximum: 10
+            default: 2
+    
+    deployment:
+      type: docker
+      image: data-processor-agent:latest
+      ports:
+        - containerPort: 8000
+      env:
+        - name: MAX_MEMORY
+          value: "2Gi"
+        - name: ENABLE_CACHE
+          value: "true"
+    
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+
+---
+
+# Example 4: AI-Powered Agent
+ai_assistant:
+  apiVersion: agntcy.org/v1
+  kind: AgentManifest
+  metadata:
+    name: ai-assistant
+    version: "3.0.0"
+    description: "AI-powered general assistant agent"
+    tags:
+      - ai
+      - assistant
+      - llm
+      - conversational
+      - acp
+  
+  spec:
+    capabilities:
+      - name: chat_completion
+        description: "Generate AI-powered responses to user queries"
+        inputSchema:
+          type: object
+          properties:
+            message:
+              type: string
+              description: "User message"
+            conversation_history:
+              type: array
+              items:
+                type: object
+                properties:
+                  role:
+                    type: string
+                    enum: ["user", "assistant", "system"]
+                  content:
+                    type: string
+              default: []
+            parameters:
+              type: object
+              properties:
+                temperature:
+                  type: number
+                  minimum: 0.0
+                  maximum: 2.0
+                  default: 0.7
+                max_tokens:
+                  type: integer
+                  minimum: 1
+                  maximum: 4000
+                  default: 1000
+          required:
+            - message
+        outputSchema:
+          type: object
+          properties:
+            response:
+              type: string
+            usage:
+              type: object
+              properties:
+                prompt_tokens:
+                  type: integer
+                completion_tokens:
+                  type: integer
+                total_tokens:
+                  type: integer
+            model:
+              type: string
+          required:
+            - response
+      
+      - name: summarize_text
+        description: "Generate summaries of long text"
+        inputSchema:
+          type: object
+          properties:
+            text:
+              type: string
+              description: "Text to summarize"
+            summary_length:
+              type: string
+              enum: ["short", "medium", "long"]
+              default: "medium"
+          required:
+            - text
+        outputSchema:
+          type: object
+          properties:
+            summary:
+              type: string
+            original_length:
+              type: integer
+            summary_length:
+              type: integer
+            compression_ratio:
+              type: number
+    
+    configuration:
+      schema:
+        type: object
+        properties:
+          model:
+            type: string
+            enum: ["gpt-4", "gpt-3.5-turbo", "claude-3", "local"]
+            default: "gpt-3.5-turbo"
+          system_prompt:
+            type: string
+            default: "You are a helpful AI assistant."
+          response_language:
+            type: string
+            enum: ["en", "es", "fr", "de", "auto"]
+            default: "auto"
+          enable_function_calling:
+            type: boolean
+            default: false
+          safety_level:
+            type: string
+            enum: ["strict", "moderate", "permissive"]
+            default: "moderate"
+    
+    discovery:
+      enabled: true
+      keywords:
+        - ai
+        - assistant
+        - chat
+        - llm
+        - conversation
+        - summarization
+      categories:
+        - artificial-intelligence
+        - conversation
+        - text-processing
+
+---
+
+# Example 5: Development/Production Configurations
+environments:
+  development:
+    apiVersion: agntcy.org/v1
+    kind: AgentManifest
+    metadata:
+      name: my-agent-dev
+      version: "0.1.0-dev"
+      tags:
+        - development
+        - testing
+        - unstable
+    
+    spec:
+      endpoints:
+        base_url: "http://localhost:8000"
+      
+      deployment:
+        type: docker
+        env:
+          - name: DEBUG
+            value: "true"
+          - name: LOG_LEVEL
+            value: "DEBUG"
+          - name: ENABLE_PROFILING
+            value: "true"
+      
+      resources:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "256Mi"
+          cpu: "200m"
+  
+  production:
+    apiVersion: agntcy.org/v1
+    kind: AgentManifest
+    metadata:
+      name: my-agent
+      version: "1.0.0"
+      tags:
+        - production
+        - stable
+        - verified
+    
+    spec:
+      endpoints:
+        base_url: "https://agents.company.com/my-agent"
+      
+      deployment:
+        type: kubernetes
+        replicas: 3
+        env:
+          - name: DEBUG
+            value: "false"
+          - name: LOG_LEVEL
+            value: "INFO"
+          - name: ENABLE_METRICS
+            value: "true"
+      
+      resources:
+        requests:
+          memory: "256Mi"
+          cpu: "250m"
+        limits:
+          memory: "1Gi"
+          cpu: "500m"
+      
+      discovery:
+        enabled: true
+        registration_url: "https://discovery.company.com/register"
+
+---
+
+# Example 6: Microservice Agent Configuration
+microservice_agent:
+  apiVersion: agntcy.org/v1
+  kind: AgentManifest
+  metadata:
+    name: user-service-agent
+    version: "2.3.1"
+    description: "User management microservice as ACP agent"
+    tags:
+      - microservice
+      - user-management
+      - crud
+      - database
+      - acp
+  
+  spec:
+    capabilities:
+      - name: create_user
+        description: "Create a new user"
+        inputSchema:
+          type: object
+          properties:
+            email:
+              type: string
+              format: email
+            username:
+              type: string
+              minLength: 3
+              maxLength: 50
+            password:
+              type: string
+              minLength: 8
+          required:
+            - email
+            - username
+            - password
+        outputSchema:
+          type: object
+          properties:
+            user_id:
+              type: string
+            status:
+              type: string
+              enum: ["created", "exists"]
+      
+      - name: get_user
+        description: "Retrieve user information"
+        inputSchema:
+          type: object
+          properties:
+            user_id:
+              type: string
+          required:
+            - user_id
+        outputSchema:
+          type: object
+          properties:
+            user:
+              type: object
+              properties:
+                id:
+                  type: string
+                email:
+                  type: string
+                username:
+                  type: string
+                created_at:
+                  type: string
+                  format: date-time
+                status:
+                  type: string
+    
+    configuration:
+      schema:
+        type: object
+        properties:
+          database_url:
+            type: string
+            description: "Database connection string"
+          max_connections:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+          enable_caching:
+            type: boolean
+            default: true
+          cache_ttl:
+            type: integer
+            description: "Cache TTL in seconds"
+            default: 300
+    
+    dependencies:
+      - name: postgresql
+        version: ">=13.0"
+        type: database
+      - name: redis
+        version: ">=6.0"
+        type: cache
+        optional: true
+    
+    discovery:
+      enabled: true
+      keywords:
+        - user
+        - management
+        - authentication
+        - crud
+      categories:
+        - identity
+        - microservice

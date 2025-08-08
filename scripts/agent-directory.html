@@ -83,15 +83,31 @@
         </div>
 
         <h2 id="a2a">🤝 Agent-to-Agent (A2A) Protocol Agents</h2>
-        <div class="protocol-section coming-soon">
-            <p><strong>Protocol:</strong> <span class="protocol-badge">A2A</span> - Agent-to-Agent Communication Protocol</p>
-            <p><em>Coming soon... Add your A2A agents here!</em></p>
+        <div class="protocol-section">
+            <p><strong>Protocol:</strong> <span class="protocol-badge">A2A</span> - Agent-to-Agent Communication Protocol with JSON-RPC</p>
             
-            <div class="agent-card coming-soon">
-                <div class="agent-name">Example A2A Agent <span class="protocol-badge">A2A</span></div>
-                <div class="agent-description">Placeholder for future A2A agent implementation</div>
-                <p><strong>Expected Port:</strong> 8002</p>
-                <p><strong>Expected Path:</strong> /agents/a2a-example/</p>
+            <div class="agent-card">
+                <div class="agent-name">A2A Math Operations Agent <span class="protocol-badge">A2A</span></div>
+                <div class="agent-description">A mathematical computation agent with dual-mode operation: AI-powered natural language processing and deterministic calculations with automatic fallback</div>
+                
+                <div class="agent-capabilities">
+                    <strong>Capabilities:</strong>
+                    <span class="capability">basic_arithmetic</span>
+                    <span class="capability">advanced_math</span>
+                    <span class="capability">llm_powered</span>
+                    <span class="capability">deterministic_fallback</span>
+                </div>
+                
+                <div class="endpoints">
+                    <strong>A2A Endpoints:</strong><br>
+                    <span class="endpoint">GET <a href="http://localhost:8002/.well-known/agent-card.json">/.well-known/agent-card.json</a></span>
+                    <span class="endpoint">POST <a href="http://localhost:8002/">/</a> (JSON-RPC)</span>
+                    <span class="endpoint">GET <a href="http://localhost:8002/docs">/docs</a> (API Documentation)</span>
+                </div>
+                
+                <p><strong>Base URL:</strong> <a href="http://localhost:8002">http://localhost:8002</a></p>
+                <p><strong>Documentation:</strong> <a href="http://localhost:8002/docs">FastAPI OpenAPI Docs</a></p>
+                <p><strong>Agent Card:</strong> <a href="http://localhost:8002/.well-known/agent-card.json">Discovery Endpoint</a></p>
             </div>
         </div>
 
@@ -118,15 +134,35 @@
   -H "Content-Type: application/json" \
   -d '{"input": {"name": "Sandbox", "language": "fr"}}'</pre>
             
-            <h3>Test All Agents (when available)</h3>
+            <h3>Quick Tests for A2A Math Agent</h3>
+            <pre># Test agent discovery
+curl -s "http://localhost:8002/.well-known/agent-card.json" | jq '.name, .skills[].name'</pre>
+            
+            <pre># Test basic arithmetic
+curl -s -X POST "http://localhost:8002/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "message/send",
+    "id": "test-math",
+    "params": {
+      "message": {
+        "messageId": "msg-math",
+        "role": "user",
+        "parts": [{"kind": "text", "text": "25 + 17"}]
+      }
+    }
+  }' | jq -r '.result.parts[0].text'</pre>
+            
+            <h3>Test All Agents</h3>
             <pre># Test ACP agent
 ./scripts/agents/test_acp.sh
 
+# Test A2A agent
+cd agents/a2a-math-agent && python scripts/test_agent.py
+
 # Test MCP agent (future)
 ./scripts/agents/test_mcp.sh
-
-# Test A2A agent (future)
-./scripts/agents/test_a2a.sh
 
 # Test all agents
 ./scripts/test_all_agents.sh</pre>
@@ -145,9 +181,9 @@
             
             <p><strong>Example structure:</strong></p>
             <pre>agents/
-├── acp-hello-world/          # ACP Hello World (implemented)
-├── mcp-example/              # Your MCP agent
-├── a2a-example/              # Your A2A agent
+├── acp-hello-world/          # ACP Hello World Agent (✅ implemented)
+├── a2a-math-agent/           # A2A Math Operations Agent (✅ implemented)
+├── mcp-example/              # Your MCP agent (coming soon)
 └── custom-protocol/          # Your custom protocol</pre>
         </div>
     </div>
