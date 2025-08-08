@@ -329,9 +329,65 @@ For agents requiring authentication:
 }
 ```
 
+## 🏢 Enterprise vs Educational Architecture
+
+> **⚠️ Important Distinction**: This tutorial demonstrates educational patterns for learning ACP concepts. Enterprise production requires additional infrastructure components.
+
+### 🎓 **Educational Architecture (Current Implementation)**
+What we're showing in this tutorial:
+
+```
+┌─────────────────┐    ┌─────────────────┐
+│   Orchestrator  │    │   Static Agent  │
+│   (Embedded     │───▶│   Directory     │
+│   Discovery)    │    │   (HTML)        │
+└─────────────────┘    └─────────────────┘
+```
+
+**Characteristics:**
+- Discovery embedded in orchestrator
+- Static agent directory (manual updates)
+- Single-tenant, development-focused
+- Direct HTTP agent communication
+
+### 🏢 **Enterprise Architecture (Production Required)**
+What enterprise ACP deployments need:
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Agent         │    │   Agent         │    │   Agent         │
+│   Discovery     │    │   Gateway       │    │   Identity      │
+│   Service       │    │   (Routing)     │    │   Service       │
+│   (OASF)        │    │                 │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │              ┌─────────────────┐              │
+         └──────────────│   SLIM          │──────────────┘
+                        │   Messaging     │
+                        │                 │
+                        └─────────────────┘
+```
+
+**Required Components:**
+- **[Agent Discovery Service](https://github.com/chkeram/agent-net-sandbox/issues/18)** - OASF-compliant discovery (Issue #18)
+- **[Agent Gateway](https://github.com/chkeram/agent-net-sandbox/issues/19)** - Enterprise routing (Issue #19)  
+- **[Agent Identity Service](https://github.com/chkeram/agent-net-sandbox/issues/20)** - Cryptographic security (Issue #20)
+- **[SLIM Messaging](https://github.com/chkeram/agent-net-sandbox/issues/21)** - Secure agent communication (Issue #21)
+
+### 📊 **Architecture Comparison**
+
+| Component | Educational | Enterprise | 
+|-----------|-------------|-------------|
+| **Discovery** | Embedded in orchestrator | Separate OASF-compliant service |
+| **Routing** | Basic Nginx proxy | Semantic Agent Gateway |
+| **Security** | Network-only | Cryptographic agent identities |  
+| **Messaging** | Direct HTTP | SLIM secure messaging |
+| **Scalability** | Single instance | Multi-tenant, distributed |
+| **Standards** | Simplified patterns | Full AGNTCY compliance |
+
 ## 🔍 Discovery Integration
 
-### How Our Agent Advertises Itself
+### How Our Agent Advertises Itself (Educational)
 
 Our orchestrator discovers agents through multiple mechanisms:
 
@@ -568,15 +624,104 @@ Before deploying your agent, ensure:
 - [Docker Labels for Metadata](https://docs.docker.com/config/labels-custom-metadata/)
 - [Semantic Versioning](https://semver.org/)
 
+## 🚀 Moving from Educational to Enterprise
+
+When you're ready to deploy production ACP agents, you'll need to transition from our educational patterns to enterprise architecture:
+
+### Step 1: Implement Core Infrastructure
+Follow the GitHub issues we've created for proper AGNTCY compliance:
+
+1. **[Issue #18: Agent Discovery Service](https://github.com/chkeram/agent-net-sandbox/issues/18)**
+   ```bash
+   # Replace embedded discovery with OASF-compliant service
+   git checkout -b feature/agent-discovery-service
+   # Follow implementation guide in issue
+   ```
+
+2. **[Issue #20: Agent Identity Service](https://github.com/chkeram/agent-net-sandbox/issues/20)**
+   ```bash
+   # Add cryptographic agent identities
+   git checkout -b feature/agent-identity-service
+   # Implement before other services for security
+   ```
+
+### Step 2: Update Agent Configurations
+Your agent manifests will need enterprise extensions:
+
+```yaml
+# Enterprise agent-manifest.yaml
+apiVersion: agntcy.org/v1
+kind: AgentManifest
+metadata:
+  name: production-agent
+  organization: "your-org.com"  # Enterprise field
+  identity:
+    public_key_id: "key_abc123"  # Cryptographic identity
+    certificate_chain: "..."    # Identity verification
+spec:
+  discovery:
+    registration_endpoint: "https://discovery.your-org.com/register"
+    auto_register: true
+    health_check_interval: 30
+  security:
+    requires_authentication: true
+    allowed_organizations: ["your-org.com", "trusted-partner.com"]
+    encryption_required: true
+```
+
+### Step 3: Production Deployment Patterns
+Enterprise deployments follow different patterns:
+
+```yaml
+# kubernetes-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: production-acp-agent
+spec:
+  replicas: 3  # High availability
+  template:
+    metadata:
+      annotations:
+        agntcy.org/discovery: "enabled"
+        agntcy.org/identity-required: "true"
+    spec:
+      initContainers:
+      - name: identity-registration
+        image: agntcy/identity-client
+        # Register with identity service before starting
+      containers:
+      - name: agent
+        image: your-agent:latest
+        env:
+        - name: DISCOVERY_SERVICE_URL
+          value: "https://discovery.your-org.com"
+        - name: IDENTITY_SERVICE_URL  
+          value: "https://identity.your-org.com"
+```
+
+### Step 4: Migration Strategy
+Don't rebuild everything at once:
+
+1. **Phase 1**: Deploy infrastructure services alongside current setup
+2. **Phase 2**: Migrate one agent type to enterprise patterns
+3. **Phase 3**: Update clients to use new discovery and routing
+4. **Phase 4**: Retire educational infrastructure
+
+### 📚 **Enterprise Tutorial Series**
+For complete enterprise implementation guidance, see our companion tutorial:
+- **[Part 5: Enterprise ACP Architecture](./05-enterprise-architecture.md)** (Coming next!)
+
 ## ⏭️ Next Steps
 
 In [Part 3: Building Your First ACP Agent](./03-building-first-agent.md), we'll:
 - Build a complete ACP agent from scratch
-- Implement all required endpoints
+- Implement all required endpoints (educational patterns)
 - Add proper error handling
 - Test with real requests
+- **Note**: We'll distinguish educational vs enterprise implementation
 
-You now understand how ACP agents are configured and discovered. Ready to build your own?
+You now understand how ACP agents are configured and discovered, both in educational and enterprise contexts. Ready to build your own?
 
 ---
 
