@@ -45,7 +45,7 @@ Master utility-first CSS with Tailwind.
 - Dark mode implementation
 - Our chat UI styles explained
 
-### 5. TypeScript Basics *(Coming Soon)*
+### [5. TypeScript Basics](./05-typescript-basics.md)
 Add type safety to your React code.
 - Types vs interfaces
 - Typing props and state
@@ -53,7 +53,7 @@ Add type safety to your React code.
 - Type inference
 - Common patterns
 
-### 6. State Management *(Coming Soon)*
+### [6. State Management](./06-state-management.md)
 Manage data and UI state effectively.
 - useState hook deep dive
 - useEffect and side effects
@@ -61,7 +61,7 @@ Manage data and UI state effectively.
 - Local storage integration
 - Performance optimization
 
-### 7. Building the Chat UI *(Coming Soon)*
+### [7. Building the Chat UI](./07-building-chat-ui.md)
 Step-by-step implementation guide.
 - Setting up the layout
 - Creating message components
