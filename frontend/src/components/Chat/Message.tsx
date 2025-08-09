@@ -42,7 +42,12 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
               {message.protocol.toUpperCase()}
             </span>
           )}
-          {message.confidence !== undefined && (
+          {message.agentId && message.agentId !== message.agentName && (
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              ({message.agentId})
+            </span>
+          )}
+          {message.confidence !== undefined && message.confidence > 0 && (
             <span className="text-xs text-gray-500">
               {Math.round(message.confidence * 100)}% confidence
             </span>
