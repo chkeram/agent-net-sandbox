@@ -16,6 +16,23 @@ export interface ProcessResponse {
     protocol?: string;
     timestamp?: string;
     simulated?: boolean;
+    
+    // A2A Protocol response structure
+    raw_response?: {
+      parts?: Array<{
+        kind?: string;
+        text?: string;
+      }>;
+    };
+    
+    // ACP Protocol response structure
+    output?: {
+      greeting?: string;
+      timestamp?: string;
+      agent_id?: string;
+      [key: string]: any; // Allow other ACP output fields
+    };
+    status?: string;
   };
   duration_ms?: number;
   success: boolean;
@@ -114,10 +131,13 @@ export class OrchestratorAPI {
 
       const data = await response.json();
       
+      // Extract clean content using protocol-aware parsing
+      const content = this._extractResponseContent(data);
+      
       // Map the response to include computed fields for easier access
       return {
         ...data,
-        content: data.response_data?.message || 'No response received',
+        content,
         agent_name: data.metadata?.routing_decision?.selected_agent?.name || data.agent_id,
         confidence: data.metadata?.routing_decision?.confidence,
         reasoning: data.metadata?.routing_decision?.reasoning,
@@ -229,6 +249,59 @@ export class OrchestratorAPI {
       console.error('Get metrics error:', error);
       throw error;
     }
+  }
+
+  // Private method to extract clean content from protocol-specific responses
+  private _extractResponseContent(data: any): string {
+    const responseData = data.response_data;
+    
+    if (!responseData) {
+      return 'No response received';
+    }
+
+    // Protocol-specific extraction based on detected protocol
+    const protocol = data.protocol?.toLowerCase() || data.metadata?.agent_protocol?.toLowerCase();
+    
+    try {
+      // A2A Protocol: Extract from parts array
+      if (protocol === 'a2a' && responseData.raw_response?.parts?.length > 0) {
+        const textParts = responseData.raw_response.parts
+          .filter((part: any) => part.kind === 'text' || !part.kind) // Include parts without kind (default to text)
+          .map((part: any) => part.text)
+          .filter(Boolean); // Remove empty/null values
+        
+        if (textParts.length > 0) {
+          return textParts.join(' ').trim();
+        }
+      }
+      
+      // ACP Protocol: Extract from output object
+      if (protocol === 'acp' && responseData.output) {
+        // Try common ACP output fields
+        const greeting = responseData.output.greeting;
+        if (greeting && typeof greeting === 'string') {
+          return greeting.trim();
+        }
+        
+        // Look for other string fields in output
+        for (const [key, value] of Object.entries(responseData.output)) {
+          if (typeof value === 'string' && key !== 'timestamp' && key !== 'agent_id') {
+            return (value as string).trim();
+          }
+        }
+      }
+      
+      // Fallback to message field for any protocol
+      if (responseData.message && typeof responseData.message === 'string') {
+        return responseData.message.trim();
+      }
+      
+    } catch (error) {
+      console.warn('Error during protocol-specific content extraction:', error);
+    }
+    
+    // Final fallback
+    return 'No response content available';
   }
 }
 
