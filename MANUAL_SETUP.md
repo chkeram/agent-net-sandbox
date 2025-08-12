@@ -103,26 +103,44 @@ cd agent-net-sandbox
 
 #### Option A: Full Docker Development (Recommended)
 ```bash
-# Start development environment
+# Start development environment (includes frontend)
 docker-compose up -d
 
-# Verify services
+# Verify services (including frontend)
 docker-compose ps
 ./scripts/test_all_agents.sh
+
+# Access frontend at: http://localhost:3000
 ```
 
-#### Option B: Hybrid Development (Docker + Local Python)
+#### Option B: Frontend Development Mode (Hot Reload)
 ```bash
-# Start supporting services only
-docker-compose up -d acp-hello-world agent-directory
+# Start backend services only
+docker-compose up -d orchestrator acp-hello-world a2a-math-agent agent-directory
 
-# Develop orchestrator locally (see Orchestrator Development section)
+# Start frontend in development mode
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up frontend
+
+# Frontend with hot reload at: http://localhost:5173
 ```
 
-#### Option C: Fully Local Development
+#### Option C: Full Development Mode (Everything in Dev Mode)
+```bash
+# Start all services in development mode with enhanced logging
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+# Benefits:
+# - Frontend hot reload on port 5173
+# - Enhanced orchestrator debugging (DEBUG log level)
+# - Source code volume mounts for live editing
+# - Development environment variables
+```
+
+#### Option D: Full Local Development (Frontend + Backend)
 ```bash
 # Setup local development for all components
-# (See individual component sections below)
+# Backend: See Orchestrator/Agent Development sections
+# Frontend: See Frontend Development section below
 ```
 
 ## Orchestrator Development
@@ -256,6 +274,230 @@ ORCHESTRATOR_WORKERS=4
 ORCHESTRATOR_ENVIRONMENT=production
 ORCHESTRATOR_DEBUG=false
 ORCHESTRATOR_LOG_LEVEL=INFO
+```
+
+## Frontend Development
+
+The React Frontend provides a modern chat interface with real-time streaming and advanced UX features.
+
+### Local Frontend Development Setup
+
+#### 1. Prerequisites
+```bash
+# Node.js 18+ and npm (check versions)
+node --version  # Should be 18+
+npm --version   # Should be 8+
+
+# If Node.js is not installed:
+# macOS: brew install node
+# Ubuntu: curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - && sudo apt-get install -y nodejs
+# Windows: Download from https://nodejs.org/
+```
+
+#### 2. Navigate to Frontend Directory
+```bash
+cd frontend
+```
+
+#### 3. Install Dependencies
+```bash
+# Install all dependencies
+npm install
+
+# Verify installation
+npm list --depth=0
+```
+
+#### 4. Environment Configuration
+```bash
+# Create environment file (optional)
+cp .env.example .env
+
+# Edit configuration if needed
+vim .env
+```
+
+**Environment variables:**
+```env
+# Backend API URL (adjust if orchestrator runs elsewhere)
+VITE_API_BASE_URL=http://localhost:8004
+
+# Application configuration
+VITE_APP_TITLE=Agent Network Sandbox
+VITE_APP_VERSION=1.0.0
+
+# Development settings
+NODE_ENV=development
+```
+
+#### 5. Start Development Server
+```bash
+# Start Vite development server with hot reload
+npm run dev
+
+# Server will start at: http://localhost:5173
+# Hot reload: Changes to source files will trigger automatic refresh
+```
+
+#### 6. Development Workflow
+```bash
+# Format code
+npm run lint
+
+# Type checking
+npm run build  # This runs TypeScript compilation
+
+# Build for production
+npm run build
+npm run preview  # Preview production build locally
+```
+
+### Frontend Architecture
+
+#### Project Structure
+```
+frontend/
+├── src/
+│   ├── components/           # React components
+│   │   ├── Chat/            # Chat interface components
+│   │   │   ├── ChatContainer.tsx          # Basic chat container
+│   │   │   ├── StreamingChatContainer.tsx # Advanced streaming container
+│   │   │   ├── MessageList.tsx           # Message list with auto-scroll
+│   │   │   ├── Message.tsx               # Individual message component
+│   │   │   ├── ChatInput.tsx             # Message input with shortcuts
+│   │   │   └── RoutingReasoning.tsx      # AI routing transparency
+│   │   └── Layout/          # Layout components
+│   ├── hooks/               # Custom React hooks
+│   │   ├── useOrchestrator.ts           # Basic API integration
+│   │   └── useStreamingOrchestrator.ts  # Advanced streaming with SSE
+│   ├── services/            # API service layer
+│   │   ├── orchestratorApi.ts          # Main orchestrator API
+│   │   └── streamingApi.ts             # Streaming API with SSE
+│   ├── types/               # TypeScript definitions
+│   │   ├── chat.ts         # Chat-related types
+│   │   └── agent.ts        # Agent-related types
+│   └── utils/              # Utility functions
+├── public/                 # Static assets
+├── Dockerfile             # Container definition
+├── nginx.conf            # Production nginx config
+├── package.json          # Dependencies and scripts
+├── vite.config.ts       # Vite configuration
+├── tailwind.config.js   # Tailwind CSS configuration
+└── tsconfig.json        # TypeScript configuration
+```
+
+#### Key Technologies
+- **React 18** with functional components and hooks
+- **TypeScript** for type safety and better development experience
+- **Vite** for fast development server and optimized builds
+- **Tailwind CSS** for utility-first styling
+- **Server-Sent Events (SSE)** for real-time streaming
+- **react-markdown** with syntax highlighting for message rendering
+
+### Development Tips
+
+#### Working with the API
+```typescript
+// The frontend expects the orchestrator to be running on port 8004
+// Start backend services:
+docker-compose up -d orchestrator acp-hello-world a2a-math-agent
+
+// Test API connection:
+curl http://localhost:8004/health
+```
+
+#### Hot Reload Development
+```bash
+# Frontend changes are reflected immediately
+# Backend changes require service restart:
+docker-compose restart orchestrator
+```
+
+#### Debugging
+```bash
+# View frontend logs
+npm run dev  # Shows Vite logs and React errors
+
+# View network requests in browser DevTools
+# Check Console tab for JavaScript errors
+# Use React DevTools extension for component debugging
+```
+
+#### Testing the Chat Interface
+1. Start backend services: `docker-compose up -d orchestrator acp-hello-world a2a-math-agent`
+2. Start frontend: `npm run dev`
+3. Open http://localhost:5173
+4. Try these test messages:
+   - "Hello there!" → Should route to ACP Hello World Agent
+   - "What is 2 + 2?" → Should route to A2A Math Agent
+   - "Calculate 15 * 7" → Should route to A2A Math Agent
+
+### Production Build
+
+#### Build and Deploy
+```bash
+# Create production build
+npm run build
+
+# Test production build locally
+npm run preview
+
+# Build Docker image
+docker build -t agent-frontend:local .
+
+# Run production container
+docker run -p 3000:80 agent-frontend:local
+```
+
+#### Docker Integration
+```bash
+# Build production image
+docker-compose build frontend
+
+# Run production container
+docker-compose up -d frontend
+
+# Access at: http://localhost:3000
+```
+
+### Troubleshooting Frontend Issues
+
+#### Node.js/npm Issues
+```bash
+# Clear npm cache
+npm cache clean --force
+
+# Remove node_modules and reinstall
+rm -rf node_modules package-lock.json
+npm install
+
+# Check for version conflicts
+npm list
+```
+
+#### Build Issues
+```bash
+# TypeScript errors
+npm run build  # Shows detailed TypeScript errors
+
+# Vite build issues
+rm -rf dist node_modules
+npm install
+npm run build
+```
+
+#### API Connection Issues
+```bash
+# Verify backend is running
+curl http://localhost:8004/health
+
+# Check CORS issues in browser DevTools
+# Ensure VITE_API_BASE_URL is correct in .env
+
+# Test direct API call
+curl -X POST "http://localhost:8004/process" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Hello test"}'
 ```
 
 ## Agent Development

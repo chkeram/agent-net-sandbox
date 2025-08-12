@@ -119,20 +119,37 @@ main() {
         print_status "INFO" "A2A Agent not running (expected if not implemented yet)"
     fi
 
-    # Test Custom Protocol Agents (port 8003+)
-    for port in 8003 8004 8005; do
-        local custom_url="http://localhost:$port"
-        if check_agent "Custom Agent (port $port)" "$custom_url" "/health" 2>/dev/null; then
-            ((total_agents++))
-            if test_agent "custom" "Custom Agent (port $port)" "$custom_url"; then
-                ((passing_agents++))
-                agents_tested+=("✅ Custom Agent (port $port)")
-            else
-                agents_tested+=("❌ Custom Agent (port $port)")
-            fi
-            echo
+    # Test Orchestrator Agent
+    local orchestrator_url="http://localhost:8004"
+    if check_agent "Multi-Protocol Orchestrator" "$orchestrator_url" "/health" 2>/dev/null; then
+        ((total_agents++))
+        if curl -s --max-time 10 -X POST "$orchestrator_url/process" \
+           -H "Content-Type: application/json" \
+           -d '{"query": "Hello test"}' > /dev/null; then
+            ((passing_agents++))
+            agents_tested+=("✅ Multi-Protocol Orchestrator")
+        else
+            agents_tested+=("❌ Multi-Protocol Orchestrator")
         fi
-    done
+        echo
+    else
+        print_status "INFO" "Orchestrator not running"
+    fi
+
+    # Test Frontend Interface
+    local frontend_url="http://localhost:3000"
+    if check_agent "React Frontend" "$frontend_url" "/health" 2>/dev/null; then
+        print_status "PASS" "React Frontend is accessible"
+        agents_tested+=("✅ React Frontend Interface")
+    else
+        print_status "INFO" "React Frontend not running (may be in development mode on port 5173)"
+        # Try development port
+        local frontend_dev_url="http://localhost:5173"
+        if check_agent "React Frontend (Dev)" "$frontend_dev_url" "/" 2>/dev/null; then
+            print_status "PASS" "React Frontend (Dev) is accessible"
+            agents_tested+=("✅ React Frontend Interface (Dev)")
+        fi
+    fi
 
     # Test Agent Directory
     local directory_url="http://localhost:8080"
@@ -158,9 +175,11 @@ main() {
     
     echo
     print_status "INFO" "Service URLs:"
+    echo "  🎨 React Frontend: http://localhost:3000 (production) or http://localhost:5173 (dev)"
+    echo "  🧠 Orchestrator: http://localhost:8004"
     echo "  🤖 ACP Hello World: http://localhost:8000"
+    echo "  🤝 A2A Math Agent: http://localhost:8002 (if running)"
     echo "  🔌 MCP Agent: http://localhost:8001 (if running)"
-    echo "  🤝 A2A Agent: http://localhost:8002 (if running)"
     echo "  📁 Agent Directory: http://localhost:8080"
     
     echo
