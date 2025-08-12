@@ -70,6 +70,7 @@ export const ChatContainer: React.FC = () => {
         agentName: response.agent_name,
         protocol: response.protocol,
         confidence: response.confidence,
+        reasoning: response.reasoning,
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -95,6 +96,41 @@ export const ChatContainer: React.FC = () => {
   const clearMessages = useCallback(() => {
     setMessages([]);
     localStorage.removeItem('chat-messages');
+  }, []);
+
+  const handleRetryMessage = useCallback(async (messageId: string) => {
+    // Find the failed message and the user message that preceded it
+    const messageIndex = messages.findIndex(msg => msg.id === messageId);
+    if (messageIndex === -1) return;
+
+    const failedMessage = messages[messageIndex];
+    if (failedMessage.role !== 'assistant') return;
+
+    // Find the user message that this was a response to
+    let userMessage: Message | null = null;
+    for (let i = messageIndex - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        userMessage = messages[i];
+        break;
+      }
+    }
+
+    if (!userMessage) return;
+
+    // Remove all messages from the failed message onward
+    setMessages(prev => prev.slice(0, messageIndex));
+
+    // Retry the user's message
+    await handleSendMessage(userMessage.content);
+  }, [messages, handleSendMessage]);
+
+  const handleCopyMessage = useCallback(async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      // You could show a toast notification here
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
   }, []);
 
   const handleRetry = useCallback(async () => {
@@ -179,7 +215,12 @@ export const ChatContainer: React.FC = () => {
       </div>
       
       {/* Messages */}
-      <MessageList messages={messages} isLoading={isLoading} />
+      <MessageList 
+        messages={messages} 
+        isLoading={isLoading}
+        onRetryMessage={handleRetryMessage}
+        onCopyMessage={handleCopyMessage}
+      />
       
       {/* Input */}
       <ChatInput

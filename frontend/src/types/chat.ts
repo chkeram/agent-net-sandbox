@@ -7,6 +7,7 @@ export interface Message {
   agentName?: string;
   protocol?: string;
   confidence?: number;
+  reasoning?: string;
   isStreaming?: boolean;
   error?: string;
 }

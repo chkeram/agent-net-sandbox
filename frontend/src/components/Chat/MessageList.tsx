@@ -6,9 +6,11 @@ interface MessageListProps {
   messages: MessageType[];
   isLoading?: boolean;
   isStreaming?: boolean; // Global streaming state to hide individual typing indicators
+  onRetryMessage?: (messageId: string) => void;
+  onCopyMessage?: (content: string) => void;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, isStreaming = false }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, isStreaming = false, onRetryMessage, onCopyMessage }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,7 +29,13 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, i
       ) : (
         <div className="max-w-4xl mx-auto">
           {messages.map((message) => (
-            <Message key={message.id} message={message} hideTypingIndicator={isStreaming} />
+            <Message 
+              key={message.id} 
+              message={message} 
+              hideTypingIndicator={isStreaming}
+              onRetry={onRetryMessage}
+              onCopy={onCopyMessage}
+            />
           ))}
           {isLoading && (
             <div className="flex gap-3 p-4 bg-gray-50 dark:bg-gray-900">

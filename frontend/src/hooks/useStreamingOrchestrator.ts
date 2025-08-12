@@ -47,6 +47,7 @@ export function useStreamingOrchestrator(): UseStreamingOrchestratorReturn {
   });
 
   const responseRef = useRef<ProcessResponse | null>(null);
+  const routingDataRef = useRef<RoutingEvent | null>(null);
 
   // Check health on mount
   useEffect(() => {
@@ -86,6 +87,7 @@ export function useStreamingOrchestrator(): UseStreamingOrchestratorReturn {
       streamPhase: 'routing',
     });
     responseRef.current = null;
+    routingDataRef.current = null;
 
     try {
       let accumulatedText = '';
@@ -102,6 +104,7 @@ export function useStreamingOrchestrator(): UseStreamingOrchestratorReturn {
           },
           
           onRoutingCompleted: (data: RoutingEvent) => {
+            routingDataRef.current = data; // Store routing data in ref
             setStreamingState(prev => ({
               ...prev,
               streamPhase: 'executing',
@@ -146,7 +149,7 @@ export function useStreamingOrchestrator(): UseStreamingOrchestratorReturn {
                     name: data.agent_name,
                   },
                   confidence: data.confidence,
-                  reasoning: streamingState.routingInfo?.reasoning,
+                  reasoning: routingDataRef.current?.reasoning,
                 },
               },
               timestamp: data.timestamp,
@@ -156,6 +159,7 @@ export function useStreamingOrchestrator(): UseStreamingOrchestratorReturn {
               }),
               agent_name: data.agent_name,
               confidence: data.confidence,
+              reasoning: routingDataRef.current?.reasoning,
             };
             
             responseRef.current = response;

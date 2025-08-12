@@ -82,6 +82,7 @@ export const StreamingChatContainer: React.FC = () => {
               agentName: streamingState.routingInfo?.agentName,
               protocol: streamingState.routingInfo?.protocol,
               confidence: streamingState.routingInfo?.confidence,
+              reasoning: streamingState.routingInfo?.reasoning,
             }
           ];
         }
@@ -146,17 +147,19 @@ export const StreamingChatContainer: React.FC = () => {
         setMessages(prev => {
           const lastMessage = prev[prev.length - 1];
           if (lastMessage && lastMessage.role === 'assistant') {
+            const updatedMessage = {
+              ...lastMessage,
+              content: response?.content || 'No response received',
+              agentId: response?.agent_id,
+              agentName: response?.agent_name,
+              protocol: response?.protocol,
+              confidence: response?.confidence,
+              reasoning: response?.reasoning,
+              isStreaming: false,
+            };
             return [
               ...prev.slice(0, -1),
-              {
-                ...lastMessage,
-                content: response?.content || 'No response received',
-                agentId: response?.agent_id,
-                agentName: response?.agent_name,
-                protocol: response?.protocol,
-                confidence: response?.confidence,
-                isStreaming: false,
-              }
+              updatedMessage
             ];
           }
           return prev;
@@ -191,6 +194,41 @@ export const StreamingChatContainer: React.FC = () => {
   const clearMessages = useCallback(() => {
     setMessages([]);
     localStorage.removeItem('chat-messages');
+  }, []);
+
+  const handleRetryMessage = useCallback(async (messageId: string) => {
+    // Find the failed message and the user message that preceded it
+    const messageIndex = messages.findIndex(msg => msg.id === messageId);
+    if (messageIndex === -1) return;
+
+    const failedMessage = messages[messageIndex];
+    if (failedMessage.role !== 'assistant') return;
+
+    // Find the user message that this was a response to
+    let userMessage: Message | null = null;
+    for (let i = messageIndex - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        userMessage = messages[i];
+        break;
+      }
+    }
+
+    if (!userMessage) return;
+
+    // Remove all messages from the failed message onward
+    setMessages(prev => prev.slice(0, messageIndex));
+
+    // Retry the user's message
+    await handleSendMessage(userMessage.content);
+  }, [messages, handleSendMessage]);
+
+  const handleCopyMessage = useCallback(async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      // You could show a toast notification here
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
   }, []);
 
   const handleRetry = useCallback(async () => {
@@ -321,6 +359,8 @@ export const StreamingChatContainer: React.FC = () => {
         messages={messages} 
         isLoading={isLoading || streamingState.isStreaming} 
         isStreaming={streamingState.isStreaming}
+        onRetryMessage={handleRetryMessage}
+        onCopyMessage={handleCopyMessage}
       />
       
       {/* Input */}
