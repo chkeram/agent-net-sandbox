@@ -5,6 +5,9 @@ pydantic-ai==0.4.11
 fastapi>=0.110.0
 uvicorn[standard]==0.35.0
 
+# LLM Clients (pinned due to pydantic-ai compatibility issue #2476)
+openai==1.99.1
+
 # HTTP Client and Server
 httpx[http2]>=0.25.0
 aiohttp>=3.9.0

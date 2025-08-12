@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
+import React, { useState, useRef, useEffect, type KeyboardEvent } from 'react';
 import { Send, StopCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 

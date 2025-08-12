@@ -5,9 +5,10 @@ import type { Message as MessageType } from '../../types/chat.ts';
 interface MessageListProps {
   messages: MessageType[];
   isLoading?: boolean;
+  isStreaming?: boolean; // Global streaming state to hide individual typing indicators
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, isStreaming = false }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,7 +27,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading })
       ) : (
         <div className="max-w-4xl mx-auto">
           {messages.map((message) => (
-            <Message key={message.id} message={message} />
+            <Message key={message.id} message={message} hideTypingIndicator={isStreaming} />
           ))}
           {isLoading && (
             <div className="flex gap-3 p-4 bg-gray-50 dark:bg-gray-900">

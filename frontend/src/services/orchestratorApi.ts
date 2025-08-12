@@ -1,4 +1,3 @@
-import type { Message } from '../types/chat.ts';
 import type { Agent, RoutingDecision } from '../types/agent.ts';
 
 // API configuration
@@ -132,7 +131,7 @@ export class OrchestratorAPI {
       const data = await response.json();
       
       // Extract clean content using protocol-aware parsing
-      const content = this._extractResponseContent(data);
+      const content = this.extractResponseContent(data);
       
       // Map the response to include computed fields for easier access
       return {
@@ -252,7 +251,7 @@ export class OrchestratorAPI {
   }
 
   // Private method to extract clean content from protocol-specific responses
-  private _extractResponseContent(data: any): string {
+  public extractResponseContent(data: any): string {
     const responseData = data.response_data;
     
     if (!responseData) {

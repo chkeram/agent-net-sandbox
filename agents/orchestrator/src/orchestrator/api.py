@@ -8,8 +8,10 @@ from datetime import datetime
 import structlog
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
+from typing import AsyncGenerator
+import json
 
 from .agent import OrchestratorAgent
 from .discovery import UnifiedDiscoveryService
@@ -390,6 +392,118 @@ async def process_request(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Processing failed: {str(e)}"
         )
+
+
+@app.post("/process/stream")
+async def process_request_stream(
+    request: ProcessRequestModel,
+    orchestrator: OrchestratorAgent = Depends(get_orchestrator_agent)
+) -> StreamingResponse:
+    """Process a request with streaming SSE response"""
+    
+    async def generate_sse_events() -> AsyncGenerator[str, None]:
+        """Generate Server-Sent Events for streaming response"""
+        try:
+            # Send initial event - request received
+            yield f"data: {json.dumps({'event': 'request_received', 'query': request.query, 'timestamp': datetime.utcnow().isoformat()})}\n\n"
+            
+            # Convert API model to internal model
+            preferred_protocol = None
+            if request.preferred_protocol:
+                try:
+                    preferred_protocol = ProtocolType(request.preferred_protocol)
+                except (ValueError, TypeError):
+                    preferred_protocol = None
+            
+            routing_request = RoutingRequest(
+                query=request.query,
+                context=request.context,
+                preferred_protocol=preferred_protocol,
+                preferred_agent=request.preferred_agent,
+                timeout_seconds=request.timeout_seconds
+            )
+            
+            # Send routing started event
+            yield f"data: {json.dumps({'event': 'routing_started', 'timestamp': datetime.utcnow().isoformat()})}\n\n"
+            
+            # Perform routing
+            routing_decision = await orchestrator.route_request(routing_request)
+            
+            # Send routing completed event with decision info
+            routing_event = {
+                'event': 'routing_completed',
+                'agent_id': routing_decision.selected_agent.agent_id if routing_decision.selected_agent else None,
+                'agent_name': routing_decision.selected_agent.name if routing_decision.selected_agent else None,
+                'protocol': routing_decision.selected_agent.protocol.value if routing_decision.selected_agent else None,
+                'confidence': routing_decision.confidence,
+                'reasoning': routing_decision.reasoning,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            yield f"data: {json.dumps(routing_event)}\n\n"
+            
+            # If no agent selected, send error
+            if not routing_decision.selected_agent:
+                error_event = {
+                    'event': 'error',
+                    'error': 'No suitable agent found',
+                    'timestamp': datetime.utcnow().isoformat()
+                }
+                yield f"data: {json.dumps(error_event)}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+            
+            # Send agent execution started event
+            yield f"data: {json.dumps({'event': 'agent_execution_started', 'agent_id': routing_decision.selected_agent.agent_id, 'timestamp': datetime.utcnow().isoformat()})}\n\n"
+            
+            # Execute on agent
+            response_data = await orchestrator._execute_on_agent(
+                routing_decision.selected_agent,
+                routing_request
+            )
+            
+            # Send raw response data in response chunk event
+            response_event = {
+                'event': 'response_chunk',
+                'response_data': response_data,
+                'protocol': routing_decision.selected_agent.protocol.value,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            yield f"data: {json.dumps(response_event)}\n\n"
+            
+            # Send completion event with full response metadata
+            completion_event = {
+                'event': 'completed',
+                'agent_id': routing_decision.selected_agent.agent_id,
+                'agent_name': routing_decision.selected_agent.name,
+                'protocol': routing_decision.selected_agent.protocol.value,
+                'confidence': routing_decision.confidence,
+                'response_data': response_data,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            yield f"data: {json.dumps(completion_event)}\n\n"
+            
+            # Send done signal
+            yield "data: [DONE]\n\n"
+            
+        except Exception as e:
+            logger.error("Streaming request failed", error=str(e))
+            error_event = {
+                'event': 'error',
+                'error': str(e),
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            yield f"data: {json.dumps(error_event)}\n\n"
+            yield "data: [DONE]\n\n"
+    
+    return StreamingResponse(
+        generate_sse_events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable Nginx buffering
+        }
+    )
 
 
 # Metrics and monitoring

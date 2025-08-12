@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { orchestratorApi } from '../services/orchestratorApi.ts';
-import type { ProcessResponse, HealthResponse, AgentSummary } from '../services/orchestratorApi.ts';
-import type { Message } from '../types/chat.ts';
+import type { ProcessResponse, AgentSummary } from '../services/orchestratorApi.ts';
 
 export interface UseOrchestratorReturn {
   // State

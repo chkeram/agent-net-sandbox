@@ -9,11 +9,13 @@ import { clsx } from 'clsx';
 
 interface MessageProps {
   message: MessageType;
+  hideTypingIndicator?: boolean; // Hide typing dots if global streaming is active
 }
 
-export const Message: React.FC<MessageProps> = ({ message }) => {
+export const Message: React.FC<MessageProps> = ({ message, hideTypingIndicator = false }) => {
   const isUser = message.role === 'user';
   const isError = !!message.error;
+  const isStreaming = !!message.isStreaming;
 
   return (
     <div className={clsx('flex gap-3 p-4', isUser ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-900')}>
@@ -58,20 +60,28 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
           <div className="text-red-600 dark:text-red-400">
             {message.error}
           </div>
+        ) : isStreaming && !message.content && !hideTypingIndicator ? (
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1">
+              <span className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+              <span className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+              <span className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+            </div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Thinking...</span>
+          </div>
         ) : (
           <div className="prose prose-sm dark:prose-invert max-w-none">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
-                code({ inline, className, children, ...props }) {
+                code({ node, inline, className, children, ...props }: any) {
                   const match = /language-(\w+)/.exec(className || '');
                   return !inline && match ? (
                     <div className="relative group">
                       <SyntaxHighlighter
-                        style={tomorrow}
+                        style={tomorrow as any}
                         language={match[1]}
                         PreTag="div"
-                        {...props}
                       >
                         {String(children).replace(/\n$/, '')}
                       </SyntaxHighlighter>
@@ -95,8 +105,14 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
           </div>
         )}
         
-        <div className="text-xs text-gray-400 mt-1">
+        <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
           {new Date(message.timestamp).toLocaleTimeString()}
+          {isStreaming && (
+            <span className="flex items-center gap-1 text-blue-500 dark:text-blue-400">
+              <span className="animate-pulse">●</span>
+              <span>Streaming...</span>
+            </span>
+          )}
         </div>
       </div>
     </div>

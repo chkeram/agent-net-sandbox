@@ -58,12 +58,32 @@ class DiscoveredAgent(BaseModel):
     agent_id: str = Field(..., description="Unique agent identifier")
     name: str = Field(..., description="Human-readable agent name")
     protocol: ProtocolType = Field(..., description="Communication protocol")
+    
+    @field_validator('protocol', mode='before')
+    @classmethod
+    def validate_protocol(cls, v):
+        if isinstance(v, str):
+            try:
+                return ProtocolType(v.lower())
+            except ValueError:
+                raise ValueError(f"Invalid protocol type: {v}")
+        return v
     endpoint: str = Field(..., description="Agent endpoint URL")
     capabilities: List[AgentCapability] = Field(
         default_factory=list,
         description="Agent capabilities"
     )
     status: AgentStatus = Field(AgentStatus.UNKNOWN, description="Current health status")
+    
+    @field_validator('status', mode='before')
+    @classmethod  
+    def validate_status(cls, v):
+        if isinstance(v, str):
+            try:
+                return AgentStatus(v.lower())
+            except ValueError:
+                return AgentStatus.UNKNOWN
+        return v
     metadata: Dict[str, Any] = Field(
         default_factory=dict,
         description="Protocol-specific metadata"
