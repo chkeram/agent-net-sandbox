@@ -26,9 +26,11 @@ docker-compose ps
 Expected output:
 ```
 NAME                    IMAGE                      STATUS
-acp-hello-world-agent   acp-hello-world-agent      Up 30 seconds (healthy)
-agent-directory         nginx:alpine               Up 30 seconds 
+agent-frontend          agent-frontend:latest      Up 30 seconds (healthy)
 agent-orchestrator      agent-orchestrator         Up 30 seconds (healthy)
+acp-hello-world-agent   acp-hello-world-agent      Up 30 seconds (healthy)
+a2a-math-agent          a2a-math-agent:latest      Up 30 seconds (healthy)
+agent-directory         nginx:alpine               Up 30 seconds 
 ```
 
 ## 2. Verify Everything Works
@@ -42,15 +44,44 @@ Expected output:
 ```
 🧪 Multi-Protocol Agent Sandbox Test Suite
 =============================================
+✅ React Frontend Interface - Healthy
+✅ Multi-Protocol Orchestrator - Healthy
 ✅ ACP Hello World Agent - Healthy
-✅ Agent Orchestrator - Healthy
+✅ A2A Math Agent - Healthy
 ✅ Agent Directory - Healthy
 🎉 All systems operational!
 ```
 
-## 3. Try the Orchestrator
+## 3. Try the Frontend Chat Interface
 
-The orchestrator is the "brain" that routes requests to appropriate agents.
+The easiest way to experience the Agent Network Sandbox is through the React frontend:
+
+### Open the Chat Interface
+```bash
+# Open in your browser
+open http://localhost:3000
+# Or visit: http://localhost:3000
+```
+
+**What you'll see:**
+- Modern chat interface with real-time messaging
+- AI routing transparency showing which agent was selected
+- Live streaming responses as they're generated
+- Smart retry mechanisms for failed messages
+
+### Try Different Queries
+Type these in the chat interface to see different agents in action:
+
+```
+Hello there!                    # → Routes to ACP Hello World Agent
+What is 2 + 2?                 # → Routes to A2A Math Agent  
+Calculate the square root of 16 # → Routes to A2A Math Agent
+Say hello in Spanish           # → Routes to ACP Hello World Agent
+```
+
+## 4. Try the Orchestrator API Directly
+
+You can also test the orchestrator API directly if you prefer:
 
 ### Basic Usage
 ```bash
@@ -87,39 +118,70 @@ curl "http://localhost:8004/agents"
 curl "http://localhost:8004/capabilities"
 ```
 
-## 4. Explore Individual Agents
+## 5. Explore Individual Services
 
-### ACP Hello World Agent
+### React Frontend (Chat Interface)
+- **Production**: http://localhost:3000 - Full-featured chat interface
+- **Features**: Real-time streaming, AI routing transparency, message retry
+
+### Agent Directory (Web UI) 
+- **URL**: http://localhost:8080 - Traditional agent directory
+
+### Individual Agent APIs
 ```bash
-# Direct agent communication
+# ACP Hello World Agent
 curl -X POST "http://localhost:8000/invoke" \
   -H "Content-Type: application/json" \
   -d '{"input": {"name": "World", "language": "en"}}'
+
+# A2A Math Agent  
+curl -X POST "http://localhost:8002/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "message/send", 
+    "params": {
+      "message": {
+        "role": "user",
+        "parts": [{"kind": "text", "text": "What is 5 * 7?"}]
+      }
+    },
+    "id": "test_123"
+  }'
 ```
 
-### Agent Directory (Web UI)
-Open in your browser: http://localhost:8080
+## 6. What's Next?
 
-## 5. What's Next?
-
-### 🧪 Experiment with the Orchestrator
-Try different queries to see how the AI routing works:
+### 🎨 Explore Frontend Development
+Try development mode with hot reload:
 
 ```bash
-# Different types of requests
-echo '{"query": "Say hello in Spanish"}' | curl -s -X POST http://localhost:8004/process -H "Content-Type: application/json" -d @-
+# Option 1: Frontend only in development mode
+docker-compose stop frontend
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up frontend
+# Frontend with hot reload at: http://localhost:5173
 
-echo '{"query": "Greet me nicely"}' | curl -s -X POST http://localhost:8004/process -H "Content-Type: application/json" -d @-
+# Option 2: Everything in development mode (enhanced logging + hot reload)
+docker-compose down
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# All services in dev mode with enhanced debugging
 ```
 
 ### 📚 Learn More
+- **[Frontend Tutorials](docs/tutorials/frontend/)** - 47 comprehensive React development guides
 - **[Manual Setup Guide](MANUAL_SETUP.md)** - Detailed installation and development setup
 - **[Contributing Guide](CONTRIBUTING.md)** - How to add new agents and protocols  
 - **[Orchestrator Documentation](agents/orchestrator/README.md)** - Deep dive into the AI routing system
-- **[ACP Agent Example](agents/acp-hello-world/README.md)** - Learn how agents work
 
-### 🛠️ Development Mode
-Want to modify the code? See the [Manual Setup Guide](MANUAL_SETUP.md) for local development.
+### 🧪 Try Advanced Features
+Experiment with the orchestrator API:
+
+```bash
+# Test different routing scenarios
+echo '{"query": "Say hello in Spanish"}' | curl -s -X POST http://localhost:8004/process -H "Content-Type: application/json" -d @-
+
+echo '{"query": "What is the derivative of x^2?"}' | curl -s -X POST http://localhost:8004/process -H "Content-Type: application/json" -d @-
+```
 
 ### 🆘 Troubleshooting
 
@@ -143,6 +205,18 @@ lsof -i :8080
 # Stop conflicting services or modify docker-compose.yml ports
 ```
 
+#### Frontend not loading?
+```bash
+# Check if frontend service is running
+docker-compose logs frontend
+
+# Try accessing directly
+curl http://localhost:3000/health
+
+# For development mode:
+curl http://localhost:5173
+```
+
 #### Tests failing?
 ```bash
 # Wait a moment for services to fully start
@@ -150,8 +224,10 @@ sleep 10
 ./scripts/test_all_agents.sh
 
 # Check individual service health
-curl http://localhost:8000/health
-curl http://localhost:8004/health
+curl http://localhost:3000/health  # Frontend
+curl http://localhost:8004/health  # Orchestrator
+curl http://localhost:8000/health  # ACP Agent
+curl http://localhost:8002/.well-known/agent-card  # A2A Agent
 ```
 
 ### 🎯 Next Steps

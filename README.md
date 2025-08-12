@@ -10,10 +10,12 @@ The Agent Network Sandbox is a comprehensive platform that enables developers to
 
 🧠 **AI-Powered Orchestration** - Intelligent routing using Pydantic AI with GPT-4o or Claude-3.5-Sonnet  
 🔌 **Multi-Protocol Support** - ACP, A2A, MCP, and custom protocols in a unified platform  
-🚀 **Production Ready** - Docker-based deployment with comprehensive testing (63.98% coverage)  
-📚 **Developer Friendly** - Extensive documentation, examples, and 147+ tests  
+🎨 **Modern React Frontend** - Production-ready chat interface with real-time streaming and AI routing transparency  
+🚀 **Full-Stack Ready** - Complete backend + frontend solution with Docker deployment  
+📚 **Comprehensive Tutorials** - 47 detailed guides covering backend agents to advanced React patterns  
 🔧 **Highly Extensible** - Add new protocols and agents with minimal effort  
 🏷️ **Tag-Based Discovery** - Semantic agent matching using capability tags  
+⚡ **Real-Time Features** - Server-Sent Events streaming with advanced UX patterns  
 
 ---
 
@@ -49,6 +51,18 @@ curl -X POST "http://localhost:8004/process" \
 | **MCP** | 🚧 Coming Soon | 8001 | Anthropic's Model Context Protocol |
 | **Custom** | 🚧 Template Ready | 8003+ | Your custom protocol implementations |
 
+## 🎨 Frontend Chat Interface
+
+The **React Frontend** provides a modern, production-ready chat interface for seamless interaction with all agents through the orchestrator.
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Chat Interface** | ✅ Production Ready | Real-time messaging with markdown support |
+| **Streaming Responses** | ✅ Production Ready | Server-Sent Events with live chunk rendering |
+| **AI Routing Transparency** | ✅ Production Ready | Expandable reasoning display with confidence scores |
+| **Multi-Protocol Support** | ✅ Production Ready | Unified interface for ACP, A2A, MCP, and custom agents |
+| **Advanced UX** | ✅ Production Ready | Message retry, copy actions, error boundaries |
+
 ## 🎯 Orchestrator Agent
 
 The **Multi-Protocol Agent Orchestrator** is the central intelligence that manages and routes requests across all protocol implementations. It provides unified access to heterogeneous agent ecosystems.
@@ -63,43 +77,49 @@ The **Multi-Protocol Agent Orchestrator** is the central intelligence that manag
 
 ```
 agent-net-sandbox/
-├── agents/                           # Individual agent implementations
-│   ├── orchestrator/                # Multi-Protocol Agent Orchestrator (NEW)
-│   │   ├── src/orchestrator/        # Orchestrator source code
-│   │   │   ├── agent.py            # Pydantic AI routing agent
-│   │   │   ├── discovery.py        # Multi-protocol discovery service
-│   │   │   ├── models.py           # Data models and schemas
-│   │   │   ├── config.py           # Configuration management
-│   │   │   └── protocols/          # Protocol-specific discovery strategies
-│   │   │       ├── acp_discovery.py    # ACP agent discovery
-│   │   │       ├── a2a_discovery.py    # A2A agent discovery (stub)
-│   │   │       ├── mcp_discovery.py    # MCP agent discovery (stub)
-│   │   │       └── base.py             # Base discovery strategy
-│   │   ├── tests/                  # Comprehensive test suite
-│   │   ├── requirements.txt        # Python dependencies
-│   │   ├── pyproject.toml         # Project configuration
-│   │   └── Dockerfile             # Container definition
-│   ├── acp-hello-world/             # ACP Hello World Agent (implemented)
-│   │   ├── src/hello_agent/         # Agent source code
-│   │   ├── agent-manifest.yaml      # AGNTCY manifest
-│   │   ├── acp-descriptor.json      # ACP descriptor
-│   │   ├── Dockerfile              # Container definition
-│   │   ├── requirements.txt        # Python dependencies
-│   │   └── README.md               # Agent-specific documentation
-│   ├── mcp-example/                # Future MCP agent
-│   ├── a2a-example/                # Future A2A agent
-│   └── custom-protocol/            # Future custom protocol agent
-├── common/                         # Shared utilities and libraries
-├── scripts/                        # Testing and utility scripts
-│   ├── agents/                     # Protocol-specific test scripts
-│   │   └── test_acp.sh            # ACP agent tests
-│   ├── test_all_agents.sh         # Master test script
-│   ├── nginx.conf                 # Reverse proxy configuration
-│   └── agent-directory.html       # Agent directory UI
-├── docs/                          # Documentation
-│   └── protocols/                 # Protocol-specific documentation
-├── docker-compose.yml             # Multi-agent orchestration
-└── README.md                      # This file
+├── frontend/                        # React Frontend Interface (NEW)
+│   ├── src/                        # React TypeScript source code
+│   │   ├── components/Chat/        # Chat interface components
+│   │   ├── hooks/                  # Custom React hooks
+│   │   ├── services/               # API service layer
+│   │   └── types/                  # TypeScript definitions
+│   ├── Dockerfile                  # Multi-stage container build
+│   ├── nginx.conf                  # Production nginx configuration
+│   ├── package.json               # Node.js dependencies
+│   └── README.md                  # Frontend documentation
+├── agents/                         # Individual agent implementations
+│   ├── orchestrator/              # Multi-Protocol Agent Orchestrator
+│   │   ├── src/orchestrator/      # Orchestrator source code
+│   │   │   ├── agent.py          # Pydantic AI routing agent
+│   │   │   ├── discovery.py      # Multi-protocol discovery service
+│   │   │   ├── models.py         # Data models and schemas
+│   │   │   ├── config.py         # Configuration management
+│   │   │   └── protocols/        # Protocol-specific discovery strategies
+│   │   ├── tests/                # Comprehensive test suite (147+ tests)
+│   │   ├── requirements.txt      # Python dependencies
+│   │   └── Dockerfile           # Container definition
+│   ├── acp-hello-world/         # ACP Hello World Agent
+│   │   ├── src/hello_agent/     # Agent source code
+│   │   ├── agent-manifest.yaml  # AGNTCY manifest
+│   │   ├── acp-descriptor.json  # ACP descriptor
+│   │   └── Dockerfile          # Container definition
+│   ├── a2a-math-agent/         # A2A Math Agent (NEW)
+│   │   ├── src/a2a_math_agent/ # Mathematical computation agent
+│   │   ├── tests/              # Comprehensive test suite
+│   │   └── Dockerfile         # Container definition
+│   └── mcp-example/           # Future MCP agent
+├── docs/                      # Comprehensive Documentation
+│   ├── tutorials/            # Tutorial Series (47 guides)
+│   │   ├── frontend/        # Complete React development tutorials
+│   │   ├── acp/            # ACP protocol tutorials
+│   │   └── a2a/            # A2A protocol tutorials
+│   └── protocols/          # Protocol-specific documentation
+├── scripts/                # Testing and utility scripts
+│   ├── test_all_agents.sh # Master test script (includes frontend)
+│   └── agents/           # Protocol-specific test scripts
+├── docker-compose.yml     # Multi-service orchestration
+├── docker-compose.dev.yml # Development override
+└── README.md             # This file
 ```
 
 ## 🚀 Quick Start
@@ -127,9 +147,11 @@ docker-compose logs -f
 
 | Service | URL | Description |
 |---------|-----|-------------|
+| **React Frontend** | http://localhost:3000 | Modern chat interface for all agents |
+| **Orchestrator API** | http://localhost:8004 | Multi-protocol agent orchestrator |
 | **ACP Hello World** | http://localhost:8000 | ACP-compliant greeting agent |
+| **A2A Math Agent** | http://localhost:8002 | A2A mathematical computation agent |
 | **Agent Directory** | http://localhost:8080 | Web interface showing all agents |
-| **OpenAPI Docs** | http://localhost:8000/docs | ACP agent API documentation |
 
 ### Test All Agents
 
@@ -697,21 +719,23 @@ python -m pytest tests/
 
 ## 🗺️ Roadmap
 
-### 🎉 Current Release (v1.0) - Production Ready
+### 🎉 Current Release (v1.0) - Full-Stack Production Ready
+- ✅ **React Frontend Interface** - Modern chat UI with real-time streaming and AI transparency
 - ✅ **Multi-Protocol Agent Orchestrator** - AI-powered intelligent routing with Pydantic AI
 - ✅ **ACP Protocol Support** - Full AGNTCY Agent Connect Protocol implementation
 - ✅ **A2A Protocol Support** - Complete Agent-to-Agent Communication Protocol with JSON-RPC
+- ✅ **Advanced UX Features** - Server-Sent Events streaming, message retry, routing reasoning
 - ✅ **Tag-Based Discovery** - Semantic agent matching using capability tags
 - ✅ **Real-time Discovery** - Automatic agent discovery and health monitoring
 - ✅ **Comprehensive Testing** - 147 tests with 63.98% code coverage
-- ✅ **Production Documentation** - Complete setup and contribution guides
-- ✅ **Docker Deployment** - Container-based architecture with Docker Compose
+- ✅ **Complete Documentation** - 47 tutorials covering backend to advanced React patterns
+- ✅ **Production Deployment** - Full Docker orchestration with frontend + backend
 
 ### 🚧 Next Release (v1.1) - Q1 2025
 - 🔄 **MCP Protocol Support** - Anthropic's Model Context Protocol integration
-- 🔄 **Enhanced Web UI** - Interactive agent directory with testing capabilities
+- 🔄 **Enhanced Agent Directory** - Interactive agent browser with advanced filtering
+- 🔄 **Conversation Management** - Chat history, threading, and export functionality
 - 🔄 **Metrics Dashboard** - Real-time monitoring and performance analytics
-- 🔄 **Load Balancing** - Intelligent request distribution across agent instances
 - 🔄 **Advanced Routing** - Multi-agent workflows and request orchestration
 
 ### 🔮 Future Releases (v1.2+)
@@ -815,7 +839,9 @@ These templates will help maintain consistent quality and provide clear guidance
 
 **Choose your path:**
 
-🚀 **Quick Start**: `git clone && docker-compose up -d` → [Quick Start Guide](QUICK_START.md)  
+🎨 **Try the Frontend**: Experience the full-stack platform → `docker-compose up -d` then visit http://localhost:3000  
+🚀 **Quick Start**: Get everything running in 5 minutes → [Quick Start Guide](QUICK_START.md)  
+📚 **Learn React**: 47 comprehensive frontend tutorials → [Frontend Tutorials](docs/tutorials/frontend/)  
 🛠️ **Development**: Local setup with hot reload → [Manual Setup Guide](MANUAL_SETUP.md)  
 🤝 **Contributing**: Add protocols and agents → [Contributing Guide](CONTRIBUTING.md)  
 🔍 **Deep Dive**: Explore the orchestrator → [Orchestrator Documentation](agents/orchestrator/README.md)  

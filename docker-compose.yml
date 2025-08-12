@@ -67,6 +67,37 @@ services:
       - "agent.type=hello-world"
       - "agent.version=0.1.0"
 
+  # React Frontend Interface
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production  # Use production build by default
+    image: agent-frontend:latest
+    container_name: agent-frontend
+    ports:
+      - "3000:80"  # Production nginx on port 80, exposed as 3000
+    environment:
+      - NODE_ENV=production
+      - VITE_API_BASE_URL=http://localhost:8004
+      - VITE_APP_TITLE=Agent Network Sandbox
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      - orchestrator
+    networks:
+      - agent-network
+    labels:
+      - "service.type=frontend"
+      - "service.description=React chat interface for multi-protocol agent orchestrator"
+      - "service.port=3000"
+      - "service.protocol=http"
+
   # Agent Directory Service (Mock)
   agent-directory:
     image: nginx:alpine
