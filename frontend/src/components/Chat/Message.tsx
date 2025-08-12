@@ -144,7 +144,7 @@ export const Message: React.FC<MessageProps> = ({ message, hideTypingIndicator =
 
         {/* Message actions for successful messages */}
         {!isError && !isStreaming && message.content && (onCopy || (onRetry && !isUser)) && (
-          <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1 mt-2">
             {onCopy && (
               <button
                 onClick={handleCopyMessage}

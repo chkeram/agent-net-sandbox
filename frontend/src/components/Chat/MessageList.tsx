@@ -32,12 +32,12 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, i
             <Message 
               key={message.id} 
               message={message} 
-              hideTypingIndicator={isStreaming}
+              hideTypingIndicator={isStreaming && !message.isStreaming}
               onRetry={onRetryMessage}
               onCopy={onCopyMessage}
             />
           ))}
-          {isLoading && (
+          {isLoading && !isStreaming && (
             <div className="flex gap-3 p-4 bg-gray-50 dark:bg-gray-900">
               <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
                 <div className="animate-pulse w-5 h-5 bg-white rounded-full" />
